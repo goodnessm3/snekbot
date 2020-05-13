@@ -49,6 +49,11 @@ class Gelbooru(commands.Cog):
     @commands.cooldown(1, 120, type=commands.BucketType.user)
     async def value(self, ctx):
 
+        """
+        I guess comparing tags works, but there could be some super rare occasion, where the tags are identical.
+        Dont know if gelbooru sorts the tags. If they dont, its even more rare. To have the same tags and the tags
+        being listed in the same order.
+        """
         if self.last_scored[ctx.message.channel.id] == self.last_search[ctx.message.channel.id]:
             await ctx.message.channel.send("This image has already been valued!")
             return
