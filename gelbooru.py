@@ -86,8 +86,13 @@ class Gelbooru(commands.Cog):
 
         """look up a picture on gelbooru"""
 
-        if args[0] == "random":
-            tagpool = self.last_search[ctx.message.channel.id].split(" ")
+        if len(args) == 0 or args[0] == "random":
+            tagpool = self.last_search.get(ctx.message.channel.id, None)
+            if tagpool == None:
+                tagpool = self.fallback_tags
+            else:
+                tagpool = tagpool.split(" ");
+            
             candidates = random.sample(tagpool, min(3, len(tagpool)))
             await ctx.message.channel.send("I searched for: {}".format(", ".join(candidates)))
             args = candidates
