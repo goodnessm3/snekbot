@@ -22,7 +22,15 @@ class Manager:
     def get_bux(self, uid):
 
         self.cursor.execute('''select bux from stats where uid = ?''', (uid,))
-        return self.cursor.fetchone()[0]  # if the user just wants one value, return a value rather than tuple
+        
+        resTuple = self.cursor.fetchone()
+        if resTuple is None: # User has no entry in stats. Make a new one
+            self.cursor.execute('''
+            insert into stats (uid, bux) select ?, ? where (select changes() = 0)
+            ''', (uid, 0))
+            return 0
+        
+        return resTuple[0] # if the user just wants one value, return a value rather than tuple
 
     def get_stats(self, uid, *args):
 

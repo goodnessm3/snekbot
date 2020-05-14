@@ -14,6 +14,8 @@ import slot_machine
 from iskill import is_kill
 import re
 from user_stats import Manager
+import clean_text as ct
+import pronouns
 
 prefixes = ["?", "Snek ", "snek ", "SNEK "]   # note trailing space in name prefix
 settings = {}  # overwritten by loading functions below
@@ -61,7 +63,7 @@ async def on_bane(msg, *args):
 
 async def on_kill(msg, *args):
 
-    match = args[0][0]
+    match = ct.discordStringEscape(args[0][0])
     out = is_kill(match)
     await msg.channel.send(out)
 
@@ -149,15 +151,14 @@ async def rate(ctx, *args):
     """rates a thing"""
     thing = " ".join(args)
 
-    thing = thing.replace("your ", "asqw ")
-    thing = thing.replace("my ", "your ")
-    thing = thing.replace("asqw ", "my ")
+    thing = pronouns.reversePronouns(thing)
 
     if random.randint(0, 3) == 2:
+        thing = pronouns.asSubject(thing)
         await ctx.message.channel.send("I rate %s %i/10" % (thing, random.randint(0, 10)))
     else:
 
-        join = "is"  # surround with plural checking code
+        join = pronouns.nounIs(thing)
 
         rating = random.choice(bot.text["ratings"])
         qual = random.choice(bot.text["qualifiers"])
