@@ -54,6 +54,10 @@ class Gelbooru(commands.Cog):
         Dont know if gelbooru sorts the tags. If they dont, its even more rare. To have the same tags and the tags
         being listed in the same order.
         """
+        if self.last_scored[ctx.message.channel.id] == None:
+            await ctx.message.channel.send("No image to value!")
+            return
+        
         if self.last_scored[ctx.message.channel.id] == self.last_search[ctx.message.channel.id]:
             await ctx.message.channel.send("This image has already been valued!")
             return
@@ -77,7 +81,10 @@ class Gelbooru(commands.Cog):
     async def tags(self, ctx):
 
         """get the tags of the last image"""
-
+        if self.last_search.get(ctx.message.channel.id, None) == None;
+            await ctx.message.channel.send("Nothing was searched yet.")
+            return
+        
         out = "The last image has tags: {}".format(self.last_search[ctx.message.channel.id])
         await ctx.message.channel.send(out)
 
