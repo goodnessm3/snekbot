@@ -63,7 +63,7 @@ async def on_bane(msg, *args):
 
 async def on_kill(msg, *args):
 
-    match = ct.discordStringEscape(args[0][0])
+    match = ct.discordRemoveUnescapedFormatting(args[0][0])
     out = is_kill(match)
     await msg.channel.send(out)
 
