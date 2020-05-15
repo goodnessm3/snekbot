@@ -6,6 +6,7 @@ import json
 import asyncio
 from collections import defaultdict
 import time
+import clean_text as ct
 
 class Gelbooru(commands.Cog):
 
@@ -81,11 +82,12 @@ class Gelbooru(commands.Cog):
     async def tags(self, ctx):
 
         """get the tags of the last image"""
-        if self.last_search.get(ctx.message.channel.id, None) == None;
+        if self.last_search.get(ctx.message.channel.id, None) == None:
             await ctx.message.channel.send("Nothing was searched yet.")
             return
         
         out = "The last image has tags: {}".format(self.last_search[ctx.message.channel.id])
+        out = ct.discordStringEscape(out)
         await ctx.message.channel.send(out)
 
     @commands.command()
