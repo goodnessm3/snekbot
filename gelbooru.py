@@ -103,7 +103,9 @@ class Gelbooru(commands.Cog):
                 tagpool = tagpool.split(" ");
             
             candidates = random.sample(tagpool, min(3, len(tagpool)))
-            await ctx.message.channel.send("I searched for: {}".format(", ".join(candidates)))
+            out = "I searched for: {}".format(", ".join(candidates))
+            out = ct.discordStringEscape(out)
+            await ctx.message.channel.send(out)
             args = candidates
 
         self.last_tags[ctx.message.channel.id] = args #added for dict
