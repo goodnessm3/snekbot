@@ -55,7 +55,8 @@ class Gelbooru(commands.Cog):
         Dont know if gelbooru sorts the tags. If they dont, its even more rare. To have the same tags and the tags
         being listed in the same order.
         """
-        if self.last_scored[ctx.message.channel.id] == None:
+        if not self.last_search.get(ctx.message.channel.id, None):  
+            # returns None if no image was entered into last_search dict
             await ctx.message.channel.send("No image to value!")
             return
         
