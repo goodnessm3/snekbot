@@ -10,6 +10,7 @@ import getpass
 from sys import exit, argv
 from collections import defaultdict
 import time
+import datetime
 import slot_machine
 from iskill import is_kill
 import re
@@ -63,7 +64,7 @@ async def on_bane(msg, *args):
 
 async def on_kill(msg, *args):
 
-    match = ct.discordStringEscape(args[0][0])
+    match = ct.discordRemoveUnescapedFormatting(args[0][0])
     out = is_kill(match)
     await msg.channel.send(out)
 
@@ -229,14 +230,15 @@ async def slots(ctx, *args):
 
 @bot.command()
 async def xmas(ctx):
+    now = datetime.datetime.now()
+    now = datetime.datetime(now.year, now.month, now.day)
+    christmas = datetime.datetime(now.year, 12, 25)
+    if now > christmas: # christmas is already passed. Get the time until next christmas
+        christmas = datetime.datetime(now.year+1, 12, 25)
+    
+    delta = christmas - now
 
-    then = time.mktime(time.strptime("25 Dec 19", "%d %b %y"))
-    now = time.time()
-    delta = then - now
-    days = delta / 86400
-    tosay = int(round(days, 0))
-
-    await ctx.message.channel.send("{} days until Christmas!".format(tosay))
+    await ctx.message.channel.send("{} days until Christmas!".format(delta.days))
 
 
 bot.regexes = {re.compile('''a big [^\?^\s]+\Z'''): on_bane,
