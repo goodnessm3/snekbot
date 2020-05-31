@@ -5,8 +5,8 @@ from async_timeout import timeout
 import json
 import asyncio
 from collections import defaultdict
-import time
 import clean_text as ct
+
 
 class Gelbooru(commands.Cog):
 
@@ -16,7 +16,7 @@ class Gelbooru(commands.Cog):
         self.sesh = bot.sesh  # aiohttp session for web responses
         self.url = "https://gelbooru.com/index.php?page=dapi&s=post&q=index&tags=rating:safe+{}"
         self.seen = []
-        self.last_tags = {} # the last tags someone asked for, use for repeat searches
+        self.last_tags = {}  # the last tags someone asked for, use for repeat searches
         self.cached_xml = None  # for "again" queries, don't need to ask the server again as we already have 100 results
         self.last_search = {}  # the tags of the last image uploaded, a string per channel {channel id:str}
         self.last_scored = defaultdict(lambda: None)  # stop multiple valuations of the same image, per channel
@@ -33,11 +33,8 @@ class Gelbooru(commands.Cog):
             tag, cid = x
             print("aaa")
             print(tag)
-            #self.bot.loop.call_soon(lambda: asyncio.ensure_future(self.check_monitored_tag(tag, cid)))
             self.bot.loop.create_task(self.check_monitored_tag(tag, cid))
-            #self.bot.loop.call_later(15, lambda: asyncio.ensure_future(self.check_monitored_tag(tag, cid)))
             print("scheduled checking of tag {}".format(tag))
-
 
     async def random(self, ctx):
 
@@ -55,6 +52,7 @@ class Gelbooru(commands.Cog):
         Dont know if gelbooru sorts the tags. If they dont, its even more rare. To have the same tags and the tags
         being listed in the same order.
         """
+
         if not self.last_search.get(ctx.message.channel.id, None):  
             # returns None if no image was entered into last_search dict
             await ctx.message.channel.send("No image to value!")
@@ -78,12 +76,12 @@ class Gelbooru(commands.Cog):
         uid = str(ctx.message.author.id)
         self.bot.buxman.adjust_bux(uid, score)
 
-
     @commands.command()
     async def tags(self, ctx):
 
         """get the tags of the last image"""
-        if self.last_search.get(ctx.message.channel.id, None) == None:
+        if not self.last_search.get(ctx.message.channel.id, None):
+            # got a None result
             await ctx.message.channel.send("Nothing was searched yet.")
             return
         
@@ -98,10 +96,10 @@ class Gelbooru(commands.Cog):
 
         if len(args) == 0 or args[0] == "random":
             tagpool = self.last_search.get(ctx.message.channel.id, None)
-            if tagpool == None:
+            if not tagpool:
                 tagpool = self.fallback_tags
             else:
-                tagpool = tagpool.split(" ");
+                tagpool = tagpool.split(" ")
             
             candidates = random.sample(tagpool, min(3, len(tagpool)))
             out = "I searched for: {}".format(", ".join(candidates))
@@ -109,14 +107,13 @@ class Gelbooru(commands.Cog):
             await ctx.message.channel.send(out)
             args = candidates
 
-        self.last_tags[ctx.message.channel.id] = args #added for dict
+        self.last_tags[ctx.message.channel.id] = args
         res, tags = await self.get_image(*args)
         self.last_search[ctx.message.channel.id] = tags
         await ctx.message.channel.send(res)
 
     async def get_image(self, *args):
 
-        #self.last_tags = args #moved to dict
         xml = await self.myget(*args)
         counts, url, tags = await self.get_result(xml)
         if type(counts) == str:
@@ -139,6 +136,7 @@ class Gelbooru(commands.Cog):
         if new_tags:
             new_tags = tuple(new_tags)
             res, tags = await self.get_image(*(self.last_tags[cid] + new_tags))
+            self.last_tags[cid] = self.last_tags[cid] + new_tags  # append extra tags for further "again" searches
         else:
             res, tags = await self.get_image(*self.last_tags[cid])
         self.last_search[cid] = tags
@@ -215,8 +213,7 @@ class Gelbooru(commands.Cog):
         print("old md5 was {}, new is {}".format(last, most_recent))
         base_time = self.monitoring_times[tag]
         if most_recent == last:
-            self.monitoring_times[tag] = base_time + 10000 # no new images are being submitted, check
-            # less frequently
+            self.monitoring_times[tag] = base_time + 10000  # check less frequently
         else:
             print("found a new image for tag {}".format(tag))
             self.dbman.insert_monitored(tag, channel=cid, last=most_recent)
@@ -224,7 +221,7 @@ class Gelbooru(commands.Cog):
             new_tags = tags.split(" ")
             print(new_tags)
             all_monitored_tags = [z[0] for z in self.dbman.get_all_monitored()]
-            if not "+" in tag:
+            if "+" not in tag:
                 for q in new_tags:
                     if q in all_monitored_tags:
                         print("This image matched a monitored tag: {}".format(q))
@@ -234,7 +231,8 @@ class Gelbooru(commands.Cog):
             self.last_search[cid] = tags
             await chan.send("I found a new {} image! {}".format(tag, url))
 
-        next_call = base_time + random.randint(0,6000)  # jitter timing to stop all gelbooru requests being simultaneous
+        next_call = max(3600, base_time + random.randint(-6000, 6000))
+        # jitter timing to stop all gelbooru requests being simultaneous
         self.bot.loop.call_later(next_call, lambda: asyncio.ensure_future(self.check_monitored_tag(tag, cid)))
         # re-add task to the bot loop, apparently no native asyncio support for periodic tasks
         print("base_time for tag {} is now {}".format(tag, self.monitoring_times[tag]))
