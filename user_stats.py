@@ -1,6 +1,7 @@
 import sqlite3
 import re
 
+
 class Manager:
 
     """Class to manage a database of discord id relating to various attributes"""
@@ -10,7 +11,7 @@ class Manager:
         self.db = sqlite3.connect("user_stats.sqlite3")
         self.cursor = self.db.cursor()
         self.bot = bot
-        self.input_checker = re.compile("[0-9A-Za-z\s!,.?&\"'+-]{,50}")
+        self.input_checker = re.compile("[0-9A-Za-z!,.?&\"'+-]{,50}")
 
     def check_input_string(self, astr):
 
@@ -23,14 +24,14 @@ class Manager:
 
         self.cursor.execute('''select bux from stats where uid = ?''', (uid,))
         
-        resTuple = self.cursor.fetchone()
-        if resTuple is None: # User has no entry in stats. Make a new one
+        restuple = self.cursor.fetchone()
+        if restuple is None:  # User has no entry in stats. Make a new one
             self.cursor.execute('''
             insert into stats (uid, bux) select ?, ? where (select changes() = 0)
             ''', (uid, 0))
             return 0
         
-        return resTuple[0] # if the user just wants one value, return a value rather than tuple
+        return restuple[0]  # if the user just wants one value, return a value rather than tuple
 
     def get_stats(self, uid, *args):
 
@@ -46,11 +47,11 @@ class Manager:
     def set_hiscore(self, name, level, exp):
 
         name = name.encode("UTF-8")
-        self.cursor.execute('''update hiscore set name = ?, level = ?, exp =? where a = ?''',(name,level,exp,"aaa"))
+        self.cursor.execute('''update hiscore set name = ?, level = ?, exp =? where a = ?''', (name, level, exp, "aaa"))
 
     def get_hiscore(self):
 
-        self.cursor.execute('''select * from hiscore where a = ?''',("aaa",))
+        self.cursor.execute('''select * from hiscore where a = ?''', ("aaa",))
         aaa, name, level, exp = self.cursor.fetchone()
         if name:
             name = name.decode("UTF-8")
@@ -89,9 +90,9 @@ class Manager:
 
     def insert_monitored(self, tag, channel, last=None):
 
-        '''From gelbooru module: add a tag to constantly check gelbooru for'''
+        """From gelbooru module: add a tag to constantly check gelbooru for"""
         if not last:
-            self.cursor.execute('''insert into monitored (tag, channel_id) values(?,?)''', (tag,channel))
+            self.cursor.execute('''insert into monitored (tag, channel_id) values(?,?)''', (tag, channel))
         else:
             #  used to update the last-seen md5
             self.cursor.execute(
@@ -100,17 +101,22 @@ class Manager:
 
     def get_all_monitored(self):
 
-        '''returns a list of all the tags to periodically check gelbooru for'''
+        """returns a list of all the tags to periodically check gelbooru for"""
 
         self.cursor.execute('''select tag, channel_id from monitored''')
         return self.cursor.fetchall()
 
     def get_last_monitored(self, tag, cid):
 
-        self.cursor.execute('''select tag, last from monitored where tag = ? and channel_id = ?''', (tag,cid))
+        self.cursor.execute('''select tag, last from monitored where tag = ? and channel_id = ?''', (tag, cid))
         return self.cursor.fetchone()
 
     def unmonitor(self, tag):
 
         self.cursor.execute('''delete from monitored where tag = ?''', (tag,))
+        self.db.commit()
+
+    def log_search(self, uid, tags):
+
+        self.cursor.execute('''insert into searches (uid, tags) values (?, ?)''', (uid, " ".join(tags)))
         self.db.commit()

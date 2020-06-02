@@ -106,6 +106,9 @@ class Gelbooru(commands.Cog):
             out = ct.discordStringEscape(out)
             await ctx.message.channel.send(out)
             args = candidates
+            self.dbman.log_search(ctx.message.author.id, ["random"])
+        else:
+            self.dbman.log_search(ctx.message.author.id, args)
 
         self.last_tags[ctx.message.channel.id] = args
         res, tags = await self.get_image(*args)
@@ -122,6 +125,7 @@ class Gelbooru(commands.Cog):
             return '''{} results.\n{}'''.format(counts, url), tags
 
     @commands.command()
+    @commands.cooldown(1, 4, type=commands.BucketType.user)
     async def again(self, ctx, *args):
 
         """repeat the last search, optionally with extra tags"""
@@ -135,12 +139,12 @@ class Gelbooru(commands.Cog):
 
         if new_tags:
             new_tags = tuple(new_tags)
-            res, tags = await self.get_image(*(self.last_tags[cid] + new_tags))
             self.last_tags[cid] = self.last_tags[cid] + new_tags  # append extra tags for further "again" searches
-        else:
-            res, tags = await self.get_image(*self.last_tags[cid])
+
+        res, tags = await self.get_image(*self.last_tags[cid])
         self.last_search[cid] = tags
         await ctx.message.channel.send(res)
+        self.dbman.log_search(ctx.message.author.id, self.last_tags[cid])
 
     async def myget(self, *args):
 

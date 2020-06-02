@@ -43,6 +43,7 @@ with open("snektext.json", "r") as f:
 for cog in ["plant", "gelbooru"]:
     bot.load_extension(cog)
 
+
 def is_owner(ctx):
     return ctx.message.author.id == bot.settings["owner_id"]
 
@@ -115,6 +116,7 @@ async def logout(ctx):
 
     if ctx.message.author.id == bot.settings["owner_id"]:
         print("logging out")
+        await bot.sesh.close()  # close web session nicely
         await ctx.message.channel.send("Bye bye")
         await bot.logout()
 
@@ -132,6 +134,7 @@ async def choose(ctx, *rest):
 
 
 bot.birb_count = 0
+
 
 @bot.command()
 async def birb(ctx):
@@ -233,7 +236,7 @@ async def xmas(ctx):
     now = datetime.datetime.now()
     now = datetime.datetime(now.year, now.month, now.day)
     christmas = datetime.datetime(now.year, 12, 25)
-    if now > christmas: # christmas is already passed. Get the time until next christmas
+    if now > christmas:  # christmas is already passed. Get the time until next christmas
         christmas = datetime.datetime(now.year+1, 12, 25)
     
     delta = christmas - now
