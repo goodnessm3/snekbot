@@ -1,6 +1,6 @@
 settings.json
 __pycache__/
-user_stats.sqlite3
+*.sqlite3
 .*.swp
 /settings_testing.json
 /birb1.jpg
