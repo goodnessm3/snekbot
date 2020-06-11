@@ -120,3 +120,24 @@ class Manager:
 
         self.cursor.execute('''insert into searches (uid, tags) values (?, ?)''', (uid, " ".join(tags)))
         self.db.commit()
+
+    def perobux_exists(self, uid, chid):
+        res = self.cursor.execute(''' SELECT userid, channelid FROM Perobux WHERE userid = ? AND channelid = ? ''', (uid, chid)).fetchone()
+        return False if res is None else True
+
+    def adjust_perobux(self, uid, chid, amount):
+        # Check if entry exists in DB
+        if not self.perobux_exists(uid, chid):
+            self.cursor.execute(''' INSERT INTO Perobux (userid, channelid, count) VALUES (?, ?, ?) ''', (uid, chid, amount))
+        else:
+            self.cursor.execute('''UPDATE Perobux SET count = count + (?) WHERE userid = ? AND channelid = ?''', (amount, uid, chid))
+        self.db.commit()
+
+    def get_perobux(self, uid, chid):
+        return self.cursor.execute('''SELECT count FROM Perobux WHERE userid = ? AND channelid = ?''', (uid, chid)).fetchone()[0]
+
+    def set_perobux(self, uid, chid, peros):
+        self.cursor.execute('''INSERT OR REPLACE INTO Perobux (userid, channelid, count) VALUES (?, ?, ?)''', (uid, chid, peros))
+        self.db.commit()
+
+

@@ -1,8 +1,7 @@
-settings.json
 __pycache__/
 *.sqlite3
 .*.swp
-/settings_testing.json
+*.json
 /birb1.jpg
 /birb2.jpg
 /birb3.jpg

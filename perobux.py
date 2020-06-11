@@ -4,39 +4,20 @@ import re
 import datetime
 import threading
 import asyncio
+import json
+from collections import defaultdict
 
 """ Module for counting peros channel-specific """
 
-
-
 """
-Could count global.
-Always recalculates the last 50 messages.
-Just in case someone adds a new pero to a message, that already has been used in computation
+Require perobux_channels.json, which contains a list of channel ids, where perobux will be available.
 
+Example:
+[
+	2134567812312,
+	9876544444443
+]
 
-SQL schema:
-
-CREATE TABLE Perobux (
-	userid INTEGER,
-	channelid INTEGER,
-	count INTEGER,
-	PRIMARY KEY (userid, channelid)
-);
-
-TODO: Move DB Stuff to user_stats
-
-"""
-
-"""
-Yield to let other perobux operations run.
-Include covered datetime to be able to remove increments in queue, that would count double.
-For example if the oldest message in a channel has not been summed yet and someone reacts with pero,
-there will be no increment queued, since the increment will be taken into account by compute_perobux
-as soon as it gets to that message.
-
-If however the message has already been covered, and someone adds a pero, that increment must be added
-after compute_perobux.
 """
 
 emoteregex = re.compile(r"(?:[^\\]|\\\\|^)(<:[A-Za-z0-9]+:\d{9,}>)")
@@ -47,41 +28,28 @@ def getEmoteName(emoteTag):
 class Perobux(commands.Cog):
 
 	def __init__(self, bot):
+		self.ic = {} # Initial compute timestamp
+		self.chain = {}
 		self.client = bot
-		self.db = sqlite3.connect("perobux.sqlite3")
-		self.c = self.db.cursor()
-		""" Check that the table is created """
-		tablecount = self.c.execute("SELECT COUNT(name) FROM sqlite_master WHERE type='table' AND name='Perobux';")
+		self.buxman = bot.buxman
 		
-		if tablecount.fetchone()[0] == 0:
-			self.c.execute("""	CREATE TABLE Perobux (
-									userid INTEGER,
-									channelid INTEGER,
-									count INTEGER,
-									PRIMARY KEY (userid, channelid)
-								);""")
-
-	def get_perobux(self, uid, chid):
-		entry = self.c.execute("SELECT count, lastupdated FROM Perobucks WHERE userid = {0} AND channelid = {1}".format(uid, chid)).fetchone()
-		if entry is None:
-			return (0, None)
-		return (entry[0], datetime.datetime.fromisoformat(entry[1]))
-
-	def set_perobux(self, uid, chid, peros):
-		self.c.execute("""
-			INSERT OR REPLACE INTO Perobucks (userid, channelid, count)
-			VALUES ({0}, {1}, {2})
-		""".format(uid, chid, peros))
-		self.db.commit()
+		with open("perobux_channels.json", "r") as f:
+			settings = json.load(f)
+			self.channels = []
+			for chsetting in settings:
+				if chsetting["enabled"]:
+					self.channels.append(chsetting["channel"])
 
 	""" Compute perobucks. If start is none, do inital compute """
-	async def compute_perobux(self, ctx, start = None):
+	async def compute_perobux(self, uid, channel, start = None):
 		""" Get history in 200 message batches """
-		ch = ctx.channel
-		uid = ctx.author.id
 		oldest_message = None
+		ch = channel.id
+		self.buxman.set_perobux(uid, ch, 0)
+		
+		self.ic[(uid, ch)] = datetime.datetime.now()
 		while True:
-			msgs = await ctx.channel.history(limit=200, after = start, before = oldest_message, oldest_first = False).filter(lambda m: m.author.id == uid).flatten()
+			msgs = await channel.history(limit=200, after = start, before = oldest_message, oldest_first = False).filter(lambda m: m.author.id == uid).flatten()
 			if not msgs:
 				break
 			for msg in msgs:
@@ -89,67 +57,85 @@ class Perobux(commands.Cog):
 				""" check for peros """
 				peros = list(filter(lambda r: r.emoji.name.lower() == "poipero", filter(lambda r: not isinstance(r.emoji, str), msg.reactions)))
 				if peros:
-					self.adjust_perobux(ctx.author.id, ctx.channel.id, peros[0].count)
+					self.buxman.adjust_perobux(uid, ch, peros[0].count)
 				
-				(yield oldest_message.created_at)
+				self.ic[(uid, ch)] = oldest_message.created_at
 		
-		if oldest_message is None:
-			self.set_perobux(ctx.author.id, ctx.channel.id, 0)
+		self.ic.pop((uid, ch))
+		
+		# This needs to be at the end of any coroutine, that changes the perobux
+		if (uid, ch) in self.chain:
+			l = self.chain[(uid, ch)]
+			if len(l) == 0:
+				self.chain.pop(uid, ch)
+			else:
+				await l.pop(0)
 
-	""" Will be moved to buxman """
-	async def adjust_perobux(self, uid, chid, amount):
-		self.c.execute("UPDATE Perobux SET count = count + ({2}) WHERE userid = {0} AND channelid = {1}".format(uid, chid, amount))
+	@commands.command()
+	async def testbux(self, ctx):
+		await self.compute_perobux(ctx.author.id, ctx.channel)
+		await ctx.channel.send("Test Done!")
+
+	async def change_perobux(self, uid, chid, amount):
+		
+		self.buxman.adjust_perobux(uid, chid, amount)
+		
+		# This needs to be at the end of any coroutine, that changes the perobux
+		if (uid, chid) in self.chain:
+			l = self.chain[(uid, chid)]
+			if len(l) == 0:
+				self.chain.pop(uid, chid)
+			else:
+				await l.pop(0)
 
 	@commands.command()
 	async def perobux(self, ctx):
-		msg = await ctx.channel.send("Calculating perobux...")
+		chid = ctx.channel.id
+		uid = ctx.author.id
 		
-		entry = self.getCurrentPeros(ctx.author.id, ctx.channel.id)
-		peros = entry[0]
+		if not chid in self.channels:
+			await ctx.channel.send("Peros are not tracked in this channel")
+			return
 		
-		new = await self.computebucks(ctx, start = entry[1])
-		peros = peros + new[0]
+		if not self.buxman.perobux_exists(uid, chid):
+			# I dont know if this is a good message.
+			await ctx.channel.send("Calculating perobux...\nPerobux may change a bit from here on for a while.\n<@{0}>, Currently starting at 0".format(uid))
+			await self.compute_perobux(uid, ctx.channel)
+		else:
+			await ctx.channel.send("<@{0}>, You currently have {1} perobux!".format(ctx.author.id, self.buxman.get_perobux(uid, chid)))
+
+	async def on_reaction(self, payload, isAdd):
+		amount = 1 if isAdd else -1
+		# Get user id and channel id
+		uid = payload.user_id
+		chid = payload.channel_id
+		channel = self.client.get_channel(chid)
+		msg = await channel.fetch_message(payload.message_id)
 		
-		self.upsertCurrentPeros(ctx.author.id, ctx.channel.id, peros, new[1])
+		# Check if peroentry exists. If not, do nothing
+		if not self.buxman.perobux_exists(uid, chid):
+			return
 		
-		await ctx.channel.send("<@{0}>, you have {1} perobux!".format(ctx.author.id, peros))
-		await msg.delete()
+		# Check that it is poipero
+		if payload.emoji.name.lower() == "poipero":
+			time = self.ic.get((uid, chid), None)
+			if time is None:
+				# Initial not running, simply adjust perobux
+				self.buxman.adjust_perobux(uid, chid, amount)
+			else:
+				# Initial is running
+				# Add adjust to chain, if it is on a message already covered by initial compute
+				if msg.created_at > time:
+					if (uid, chid) in self.chain:
+						self.chain[(uid, chid)].append(change_perobux(uid, chid, amount))
 
 	@commands.Cog.listener()
 	async def on_raw_reaction_add(self, payload):
-		""" self.worker.queue(self.adjust_perobux( """
-		print(payload)
+		await self.on_reaction(payload, True)
 
 	@commands.Cog.listener()
 	async def on_raw_reaction_remove(self, payload):
-		
-		print(payload)
-
-
-class PerobuxWorker():
-	
-	def __init__(self):
-		self.comp = {}
-		self.q = {}
-		self.m = Lock()
-		self.t = Thread(target = self.run)
-		self.t.deamon = True
-		self.t.start()
-	
-	def run(self):
-		while True:
-			if
-			""" Iterate through all coroutine lists in q """
-			toremove = []
-			
-			
-	
-	def queue(self, key, coroutine, initial):
-		self.m.aquire()
-		try:
-			
-		finally:
-			self.m.release()
+		await self.on_reaction(payload, False)
 
 def setup(bot):
 	bot.add_cog(Perobux(bot))
