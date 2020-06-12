@@ -53,7 +53,7 @@ class Peros(commands.Cog):
 			return
 		chid = ctx.channel.id
 		uid = ctx.author.id
-		await ctx.channel.send("<@{0}>, You currently have {1} perobux!".format(ctx.author.id, self.buxman.get_peros_for_channels(uid, self.channels)))
+		await ctx.channel.send("<@{0}>, You currently have {1} peros!".format(ctx.author.id, self.buxman.get_peros_for_channels(uid, self.channels)))
 
 	@peros.command()
 	async def here(self, ctx):
@@ -65,7 +65,7 @@ class Peros(commands.Cog):
 		if not self.buxman.peros_exists(uid, chid):
 			self.buxman.set_peros(uid, chid, 0)
 		
-		await ctx.channel.send("<@{0}>, You currently have {1} perobux in this channel!".format(ctx.author.id, self.buxman.get_peros(uid, chid)))
+		await ctx.channel.send("<@{0}>, You currently have {1} peros in this channel!".format(ctx.author.id, self.buxman.get_peros(uid, chid)))
 		return
 
 	@peros.command()
@@ -74,6 +74,19 @@ class Peros(commands.Cog):
 		chids = list(map(get_channel_id, chs))
 		subprocess.Popen(self.settings["python"] + " peros_gen.py " + str(ctx.channel.id) + " " + (" ".join(chids)))
 
+	@peros.command(name="in")
+	async def _in(self, ctx, channel):
+		chid = ctx.channel.id
+		if not channel is None:
+			match = channelregex.match(channel)
+			if not match is None:
+				chid = int(match.group(1))
+
+		if not chid in self.channels:
+			await ctx.channel.send("Peros are not tracked in that channel.")
+			return
+		uid = ctx.author.id
+		await ctx.channel.send("<@{0}>, You currently have {1} peros in <#{2}>!".format(ctx.author.id, self.buxman.get_peros_for_channels(uid, self.channels), chid))
 
 	async def on_reaction(self, payload, isAdd):
 		amount = 1 if isAdd else -1
