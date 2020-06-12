@@ -121,30 +121,30 @@ class Manager:
         self.cursor.execute('''insert into searches (uid, tags) values (?, ?)''', (uid, " ".join(tags)))
         self.db.commit()
 
-    def perobux_exists(self, uid, chid):
-        res = self.cursor.execute(''' SELECT userid, channelid FROM Perobux WHERE userid = ? AND channelid = ? ''', (uid, chid)).fetchone()
+    def peros_exists(self, uid, chid):
+        res = self.cursor.execute(''' SELECT userid, channelid FROM Peros WHERE userid = ? AND channelid = ? ''', (uid, chid)).fetchone()
         return False if res is None else True
 
-    def adjust_perobux(self, uid, chid, amount):
+    def adjust_peros(self, uid, chid, amount):
         # Check if entry exists in DB
-        if not self.perobux_exists(uid, chid):
-            self.cursor.execute(''' INSERT INTO Perobux (userid, channelid, count) VALUES (?, ?, ?) ''', (uid, chid, amount))
+        if not self.Peros_exists(uid, chid):
+            self.cursor.execute(''' INSERT INTO Peros (userid, channelid, count) VALUES (?, ?, ?) ''', (uid, chid, amount))
         else:
-            self.cursor.execute('''UPDATE Perobux SET count = count + (?) WHERE userid = ? AND channelid = ?''', (amount, uid, chid))
+            self.cursor.execute('''UPDATE Peros SET count = count + (?) WHERE userid = ? AND channelid = ?''', (amount, uid, chid))
         self.db.commit()
 
-    def get_perobux(self, uid, chid):
-        return self.cursor.execute('''SELECT count FROM Perobux WHERE userid = ? AND channelid = ?''', (uid, chid)).fetchone()[0]
+    def get_peros(self, uid, chid):
+        return self.cursor.execute('''SELECT count FROM Peros WHERE userid = ? AND channelid = ?''', (uid, chid)).fetchone()[0]
 
-    def set_perobux(self, uid, chid, peros):
-        self.cursor.execute('''INSERT OR REPLACE INTO Perobux (userid, channelid, count) VALUES (?, ?, ?)''', (uid, chid, peros))
+    def set_peros(self, uid, chid, peros):
+        self.cursor.execute('''INSERT OR REPLACE INTO Peros (userid, channelid, count) VALUES (?, ?, ?)''', (uid, chid, peros))
         self.db.commit()
 
-    def set_all_perobux(self, chid, peros):
-        self.cursor.execute('''UPDATE Perobux SET count = ? WHERE channelid = ?''', (peros, chid))
+    def set_all_peros(self, chid, peros):
+        self.cursor.execute('''UPDATE Peros SET count = ? WHERE channelid = ?''', (peros, chid))
         self.db.commit()
 
-    def get_perobux_for_channels(self, uid, channels):
-        return self.cursor.execute('''SELECT SUM(count) FROM Perobux WHERE userid = ? AND channelid IN (?)''', (uid,",".join(map(str, channels)))).fetchone()[0]
+    def get_peros_for_channels(self, uid, channels):
+        return self.cursor.execute('''SELECT SUM(count) FROM Peros WHERE userid = ? AND channelid IN (?)''', (uid,",".join(map(str, channels)))).fetchone()[0]
 
 
