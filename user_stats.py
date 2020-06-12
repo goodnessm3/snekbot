@@ -140,4 +140,11 @@ class Manager:
         self.cursor.execute('''INSERT OR REPLACE INTO Perobux (userid, channelid, count) VALUES (?, ?, ?)''', (uid, chid, peros))
         self.db.commit()
 
+    def set_all_perobux(self, chid, peros):
+        self.cursor.execute('''UPDATE Perobux SET count = ? WHERE channelid = ?''', (peros, chid))
+        self.db.commit()
+
+    def get_perobux_for_channels(self, uid, channels):
+        return self.cursor.execute('''SELECT SUM(count) FROM Perobux WHERE userid = ? AND channelid IN (?)''', (uid,",".join(map(str, channels)))).fetchone()[0]
+
 
