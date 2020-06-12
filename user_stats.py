@@ -145,6 +145,9 @@ class Manager:
         self.db.commit()
 
     def get_peros_for_channels(self, uid, channels):
-        return self.cursor.execute('''SELECT SUM(count) FROM Peros WHERE userid = ? AND channelid IN (?)''', (uid,",".join(map(str, channels)))).fetchone()[0]
+        res = self.cursor.execute('''SELECT SUM(count) FROM Peros WHERE userid = ? AND channelid IN (?)''', (uid,",".join(map(str, channels)))).fetchone()[0]
+        if res is None:
+            return 0
+        return res
 
 

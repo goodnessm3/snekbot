@@ -32,12 +32,20 @@ def is_owner(ctx):
 @bot.event
 async def on_ready():
 	print_channel = bot.get_channel(printch)
+	if print_channel is None:
+		print("ERROR: print channel id does not match any channels!")
+		await bot.logout()
+		return
+	
 	await print_channel.send("Started calculating peros for {0} channels".format(len(channels)))
 	starttime = datetime.datetime.now()
 	msgcount = 0
 	""" For each channel in peros_gen_channels, look for poipero reaction and adjust entry for uid, chid """
 	for chid in channels:
 		channel = bot.get_channel(chid)
+		if channel is None:
+			await print_channel.send("Channel \'{0}\' not found.".format(chid))
+			continue
 		msgcount += await compute_peros(channel)
 	
 	dt = datetime.datetime.now() - starttime 

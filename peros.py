@@ -11,7 +11,7 @@ import subprocess
 """ Module for counting peros channel-specific """
 
 """
-Requires peros_channels.json, which contains a list of channel ids, where peros will be available.
+Requires peros_channels.json, which contains a list of channel ids, where peros will be counted.
 
 Example:
 [
@@ -20,6 +20,8 @@ Example:
 ]
 
 """
+
+PERO_CHANNELS_FILE = "peros_channels.json"
 
 def is_owner(ctx):
 	return ctx.message.author.id == ctx.cog.settings["owner_id"]
@@ -34,9 +36,6 @@ def get_channel_id(strid):
 	else:
 		return strid
 
-def getEmoteName(emoteTag):
-	return emoteTag.split(":")[1]
-
 class Peros(commands.Cog):
 
 	def __init__(self, bot):
@@ -44,7 +43,7 @@ class Peros(commands.Cog):
 		self.buxman = bot.buxman
 		self.settings = bot.settings
 		
-		with open("peros_channels.json", "r") as f:
+		with open(PERO_CHANNELS_FILE, "r") as f:
 			self.channels = json.load(f)
 
 	@commands.group()
@@ -53,7 +52,11 @@ class Peros(commands.Cog):
 			return
 		chid = ctx.channel.id
 		uid = ctx.author.id
-		await ctx.channel.send("<@{0}>, You currently have {1} peros!".format(ctx.author.id, self.buxman.get_peros_for_channels(uid, self.channels)))
+		peros = self.buxman.get_peros_for_channels(uid, self.channels)
+		if peros == 1:
+			await ctx.channel.send("You currently have 1 pero!")
+		else:
+			await ctx.channel.send("You currently have {0} peros!".format(peros))
 
 	@peros.command()
 	async def here(self, ctx):
@@ -65,8 +68,11 @@ class Peros(commands.Cog):
 		if not self.buxman.peros_exists(uid, chid):
 			self.buxman.set_peros(uid, chid, 0)
 		
-		await ctx.channel.send("<@{0}>, You currently have {1} peros in this channel!".format(ctx.author.id, self.buxman.get_peros(uid, chid)))
-		return
+		peros = self.buxman.get_peros(uid, chid)
+		if peros == 1:
+			await ctx.channel.send("You currently have 1 pero in this channel!")
+		else:
+			await ctx.channel.send("You currently have {0} peros this channel!".format(peros))
 
 	@peros.command()
 	@commands.check(is_owner)
@@ -86,7 +92,63 @@ class Peros(commands.Cog):
 			await ctx.channel.send("Peros are not tracked in that channel.")
 			return
 		uid = ctx.author.id
-		await ctx.channel.send("<@{0}>, You currently have {1} peros in <#{2}>!".format(ctx.author.id, self.buxman.get_peros_for_channels(uid, self.channels), chid))
+		peros = self.buxman.get_peros_for_channels(uid, self.channels)
+		if peros == 1:
+			await ctx.channel.send("You currently have 1 pero in <#{0}>!".format(chid))
+		else:
+			await ctx.channel.send("You currently have {0} peros in <#{1}>!".format(peros, chid))
+
+	@peros.command()
+	@commands.check(is_owner)
+	async def track(self, ctx, *chs):
+		new = []
+		chids = list(map(get_channel_id, chs))
+		for strchid in chids:
+			chid = -1
+			try:
+				chid = int(strchid)
+			except:
+				continue
+			if not self.client.get_channel(chid) is None:
+				if not chid in self.channels:
+					self.channels.append(chid)
+					new.append(chid)
+		
+		if len(new) == 0:
+			await ctx.channel.send("No new channels are being tracked.")
+		elif len(new) == 1:
+			await ctx.channel.send("<#{0}> is now being tracked.".format(new[0]))
+		else:
+			await ctx.channel.send("{0} are now being tracked.".format(" ".join(list(map(lambda id: "<#{0}>".format(id), new)))))
+		
+		with open(PERO_CHANNELS_FILE, "w") as f:
+			json.dump(self.channels, f)
+
+	@peros.command()
+	@commands.check(is_owner)
+	async def untrack(self, ctx, *chs):
+		new = []
+		chids = list(map(get_channel_id, chs))
+		for strchid in chids:
+			chid = -1
+			try:
+				chid = int(strchid)
+			except:
+				continue
+			if not self.client.get_channel(chid) is None:
+				if chid in self.channels:
+					self.channels.remove(chid)
+					new.append(chid)
+		
+		if len(new) == 0:
+			await ctx.channel.send("No new channels have been untracked.")
+		elif len(new) == 1:
+			await ctx.channel.send("<#{0}> is now no longer being tracked.".format(new[0]))
+		else:
+			await ctx.channel.send("{0} are now no longer being tracked.".format(" ".join(list(map(lambda id: "<#{0}>".format(id), new)))))
+		
+		with open(PERO_CHANNELS_FILE, "w") as f:
+			json.dump(self.channels, f)
 
 	async def on_reaction(self, payload, isAdd):
 		amount = 1 if isAdd else -1
