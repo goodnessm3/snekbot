@@ -127,7 +127,7 @@ class Manager:
 
     def adjust_peros(self, uid, chid, amount):
         # Check if entry exists in DB
-        if not self.Peros_exists(uid, chid):
+        if not self.peros_exists(uid, chid):
             self.cursor.execute(''' INSERT INTO Peros (userid, channelid, count) VALUES (?, ?, ?) ''', (uid, chid, amount))
         else:
             self.cursor.execute('''UPDATE Peros SET count = count + (?) WHERE userid = ? AND channelid = ?''', (amount, uid, chid))

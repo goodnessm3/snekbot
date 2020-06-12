@@ -12,30 +12,27 @@ Additionally needs: peros_gen_channels.json
 which contains the channels, which will be calculated when init_peros is run
 """
 
-prefixes = ["?", "Snek ", "snek ", "SNEK "]   # note trailing space in name prefix
 settings = {}  # overwritten by loading functions below
 
 if len(argv) > 1 and argv[1] == "-t":
 	with open("settings_testing.json", "rb") as f:
 		settings = json.load(f)
-	bot = commands.Bot(command_prefix=["!"])  # testing bot only responds to !-prefixed cmds
-
+	bot = commands.Bot(command_prefix=["!"])
 else:
 	with open("settings.json", "rb") as f:
 		settings = json.load(f)
-	bot = commands.Bot(command_prefix=prefixes)
+	bot = commands.Bot(command_prefix=["!"])
 
-channels = []
-with open("peros_gen_channels.json", "r") as f:
-	channels = json.load(f)
+printch = int(argv[1 if argv[1] != "-t" else 2])
+channels = list(map(int, argv[2 if argv[1] != "-t" else 3: len(argv)]))
 
 def is_owner(ctx):
 	return ctx.message.author.id == bot.settings["owner_id"]
 
-@bot.command()
-@commands.check(is_owner)
-async def init_peros(ctx):
-	await ctx.channel.send("Started calculating peros for {0} channels".format(len(channels)))
+@bot.event
+async def on_ready():
+	print_channel = bot.get_channel(printch)
+	await print_channel.send("Started calculating peros for {0} channels".format(len(channels)))
 	starttime = datetime.datetime.now()
 	msgcount = 0
 	""" For each channel in peros_gen_channels, look for poipero reaction and adjust entry for uid, chid """
@@ -50,7 +47,8 @@ async def init_peros(ctx):
 	for i, _ in enumerate(timenames):
 		if timevalues[i] != 0:
 			timestr += "{0:.0f} {1} ".format(timevalues[i], timenames[i])
-	await ctx.channel.send("Finished calculating peros for {0} messages in {1}".format(msgcount, timestr))
+	await print_channel.send("Finished calculating peros for {0} messages in {1}".format(msgcount, timestr))
+	await bot.logout()
 
 """ Compute perobucks. If start is none, do inital compute """
 async def compute_peros(channel):
