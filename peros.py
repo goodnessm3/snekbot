@@ -43,8 +43,12 @@ class Peros(commands.Cog):
 		self.buxman = bot.buxman
 		self.settings = bot.settings
 		
-		with open(PERO_CHANNELS_FILE, "r") as f:
-			self.channels = json.load(f)
+		
+		try:
+			with open(PERO_CHANNELS_FILE, "r") as f:
+				self.channels = json.load(f)
+		except:
+			self.channels = []
 
 	@commands.group()
 	async def peros(self, ctx):
