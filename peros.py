@@ -82,7 +82,7 @@ class Peros(commands.Cog):
 	@commands.check(is_owner)
 	async def init(self, ctx, *chs):
 		chids = list(map(get_channel_id, chs))
-		subprocess.Popen(self.settings["python"] + " peros_gen.py " + str(ctx.channel.id) + " " + (" ".join(chids)))
+		subprocess.Popen(self.settings["python"] + " peros_gen.py " + str(ctx.channel.id) + " " + (" ".join(chids)), shell=True)
 
 	@peros.command(name="in")
 	async def _in(self, ctx, channel):
