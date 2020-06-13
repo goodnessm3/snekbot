@@ -96,7 +96,7 @@ class Peros(commands.Cog):
 			await ctx.channel.send("Peros are not tracked in that channel.")
 			return
 		uid = ctx.author.id
-		peros = self.buxman.get_peros_for_channels(uid, self.channels)
+		peros = self.buxman.get_peros(uid, chid)
 		if peros == 1:
 			await ctx.channel.send("You currently have 1 pero in <#{0}>!".format(chid))
 		else:

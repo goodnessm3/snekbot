@@ -122,10 +122,12 @@ class Manager:
         self.db.commit()
 
     def peros_exists(self, uid, chid):
+
         res = self.cursor.execute(''' SELECT userid, channelid FROM Peros WHERE userid = ? AND channelid = ? ''', (uid, chid)).fetchone()
         return False if res is None else True
 
     def adjust_peros(self, uid, chid, amount):
+
         # Check if entry exists in DB
         if not self.peros_exists(uid, chid):
             self.cursor.execute(''' INSERT INTO Peros (userid, channelid, count) VALUES (?, ?, ?) ''', (uid, chid, amount))
@@ -134,20 +136,27 @@ class Manager:
         self.db.commit()
 
     def get_peros(self, uid, chid):
+
         return self.cursor.execute('''SELECT count FROM Peros WHERE userid = ? AND channelid = ?''', (uid, chid)).fetchone()[0]
 
     def set_peros(self, uid, chid, peros):
+
         self.cursor.execute('''INSERT OR REPLACE INTO Peros (userid, channelid, count) VALUES (?, ?, ?)''', (uid, chid, peros))
         self.db.commit()
 
     def set_all_peros(self, chid, peros):
+
         self.cursor.execute('''UPDATE Peros SET count = ? WHERE channelid = ?''', (peros, chid))
         self.db.commit()
 
     def get_peros_for_channels(self, uid, channels):
-        res = self.cursor.execute('''SELECT SUM(count) FROM Peros WHERE userid = ? AND channelid IN (?)''', (uid,",".join(map(str, channels)))).fetchone()[0]
+
+        qstring = ",".join(["?"]*len(channels))
+        sql = '''SELECT SUM(count) FROM Peros WHERE userid = ? AND channelid IN ({})'''.format(qstring)
+        # sqlite can't substitute in a list or tuple so we need to build the query string with the appropriate
+        # number of ?'s to satisfy the "IN" query, if passed a comma delimited string it will end up in quote marks
+        # which breaks the query.
+        res = self.cursor.execute(sql, ((uid,) + tuple(channels))).fetchone()[0]  # execute with the string we built
         if res is None:
             return 0
         return res
-
-
