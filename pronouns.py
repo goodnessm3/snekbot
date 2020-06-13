@@ -26,7 +26,7 @@ def transferCasing(ow, nw):
 	else:
 		nletters[0] = nletters[0].lower()
 	
-	del oletters[0]
+	oletters.pop(0)
 	if len(oletters) == 0:
 		return "".join(nletters)
 	
