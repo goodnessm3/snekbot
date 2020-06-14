@@ -76,7 +76,7 @@ class Peros(commands.Cog):
 		if peros == 1:
 			await ctx.channel.send("You currently have 1 pero in this channel!")
 		else:
-			await ctx.channel.send("You currently have {0} peros this channel!".format(peros))
+			await ctx.channel.send("You currently have {0} peros in this channel!".format(peros))
 
 	@peros.command()
 	@commands.check(is_owner)
