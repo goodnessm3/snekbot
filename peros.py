@@ -31,6 +31,16 @@ emoteregex = re.compile(r"(?:[^\\]|\\\\|^)(<:[A-Za-z0-9]+:\d{9,}>)")
 channelregex = re.compile(r"(?:[^\\]|\\\\|^)<#([0-9]+)>")
 usermentionregex = re.compile(r"(?:[^\\]|\\\\|^)<@(?:!|)([0-9]+)>")
 
+def remove_duplicates(l):
+	i = 0
+	while i < len(l):
+		j = len(l) - 1
+		while j > i:
+			if l[i] == l[j]:
+				l.pop(j)
+			j -= 1
+		i += 1
+
 def matches_any_pattern(l, i, ps):
 	for p in ps:
 		if matches_pattern(l, i, p):
@@ -66,7 +76,7 @@ channel_specifiers = [
 ]
 
 positional_channels = [
-	(("here",), lambda ctx, arg: ctx.channel.id),
+	("here", lambda ctx, arg: ctx.channel.id),
 ]
 
 pronoun_users = [
@@ -149,7 +159,13 @@ class Peros(commands.Cog):
 		if not is_owner(ctx):
 			await ctx.channel.send("Only sneks owner can do that!")
 			return
-		
+		def get_channel_id(arg):
+			for pc in positional_channels:
+				if pc[0] == arg.lower():
+					return pc[1](ctx, arg)
+			match = channelregex.match(arg)
+			if not match is None:
+				return int(match.group(1))
 		new = []
 		chids = list(map(get_channel_id, chs))
 		for strchid in chids:
@@ -194,6 +210,19 @@ class Peros(commands.Cog):
 		# will be made for the subsequent query
 		queries = []
 		
+		def clean_query(ctx, ul, chl):
+			if ul is None or len(ul) == 0:
+				ul = [ctx.author.id]
+			remove_duplicates(ul)
+			ul.sort()
+			
+			if chl is None or len(chl) == 0:
+				chl = ctx.cog.channels.copy()
+			remove_duplicates(chl)
+			chl.sort()
+			
+			return (ul, chl)
+		
 		if not args is None:
 			ulist = None
 			chlist = None
@@ -219,7 +248,7 @@ class Peros(commands.Cog):
 				if not p is None:
 					if not ulist is None:
 						# append query
-						queries.append((ulist, chlist))
+						queries.append(clean_query(ctx, ulist, chlist))
 						ulist = None
 						chlist = None
 						add_list = None
@@ -235,10 +264,9 @@ class Peros(commands.Cog):
 				# Check for channel specifier patterns
 				p = matches_any_pattern(args, i, channel_specifiers)
 				if not p is None:
-					
 					if not chlist is None:
 						# append query
-						queries.append((ulist, chlist))
+						queries.append(clean_query(ctx, ulist, chlist))
 						ulist = None
 						chlist = None
 						add_list = None
@@ -250,12 +278,16 @@ class Peros(commands.Cog):
 					continue
 				
 				if not add_list is None and not add_func is None:
-					add_list.append(await add_func(ctx, v))
+					v = await add_func(ctx, v)
+					if not v is None:
+						add_list.append(v)
 					continue
-				
-			queries.append((ulist, chlist))
+			
+			queries.append(clean_query(ctx, ulist, chlist))
 		else:
-			queries.append((None, None))
+			queries.append(clean_query(ctx, None, None))
+		
+		# Some functions, to make lines shorter or remove duplicate code.
 		
 		async def get_user_name(ctx, uid):
 			if ctx.author.id == uid:
@@ -280,9 +312,14 @@ class Peros(commands.Cog):
 			else:
 				return ", ".join(l[0:len(l)-1]) + " and " + l[len(l)-1]
 		
+		# Remove duplicate queries
+		remove_duplicates(queries)
+		
+		
 		messages = []
 		# Process queries
 		for query in queries:
+			
 			# Use default values
 			ulist = [ctx.author.id] if query[0] is None else query[0]
 			if len(ulist) == 0:
@@ -302,6 +339,8 @@ class Peros(commands.Cog):
 			
 			if chlist is None:
 				chlist = self.channels
+			
+			
 			
 			# Only one user
 			if len(ulist) == 1:
