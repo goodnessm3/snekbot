@@ -62,8 +62,8 @@ def matches_pattern(l, i, p):
 	
 	return res
 
-# List of arguments, that work as "and". These will be ignored if they appear in the channel-id list or user-list
-and_tuples = [
+# List of patterns of arguments, that will be ignored.
+ignore_patterns = [
 	("and",),
 	(",",)
 ]
@@ -236,7 +236,7 @@ class Peros(commands.Cog):
 					continue
 				
 				# Check for "and" patterns
-				p = matches_any_pattern(args, i, and_tuples)
+				p = matches_any_pattern(args, i, ignore_patterns)
 				if not p is None:
 					skips = len(p)-1
 					continue
