@@ -34,7 +34,7 @@ class Plant(commands.Cog):
     async def send_plant_pic(self):
 
         error = False
-        retcode = subprocess.run(["ffmpeg", "-i", "rtmp://localhost:5000/live", "-vframes", "1", "plant.jpg"])
+        retcode = subprocess.run(["ffmpeg", "-y", "-i", "rtmp://localhost:5000/live", "-vframes", "1", "plant.jpg"])
         if not retcode == 0:
             error = True
         for chan_id in self.expecting:
