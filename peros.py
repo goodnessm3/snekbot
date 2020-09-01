@@ -365,15 +365,14 @@ class Peros(commands.Cog):
 	
 	async def on_reaction(self, payload, isAdd):
 		amount = 1 if isAdd else -1
-		# Get user id and channel id
-		uid = payload.user_id
 		
-		channel = self.client.get_channel(chid)
-		msg = await channel.fetch_message(payload.message_id)
-		chid = msg.channel.id
+		chid = payload.channel_id
 		if not chid in self.channels:
 			return
 		
+		channel = self.client.get_channel(payload.channel_id)
+		msg = await channel.fetch_message(payload.message_id)
+		uid = msg.author.id
 		
 		# Check if peroentry exists. If not, do nothing
 		if not self.buxman.peros_exists(uid, chid):
