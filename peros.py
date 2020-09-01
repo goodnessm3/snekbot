@@ -62,8 +62,8 @@ def matches_pattern(l, i, p):
 	
 	return res
 
-# List of arguments, that work as "and". These will be ignored if they appear in the channel-id list or user-list
-and_tuples = [
+# List of patterns of arguments, that will be ignored.
+ignore_patterns = [
 	("and",),
 	(",",)
 ]
@@ -236,7 +236,7 @@ class Peros(commands.Cog):
 					continue
 				
 				# Check for "and" patterns
-				p = matches_any_pattern(args, i, and_tuples)
+				p = matches_any_pattern(args, i, ignore_patterns)
 				if not p is None:
 					skips = len(p)-1
 					continue
@@ -367,12 +367,13 @@ class Peros(commands.Cog):
 		amount = 1 if isAdd else -1
 		# Get user id and channel id
 		uid = payload.user_id
-		chid = payload.channel_id
-		if not chid in self.channels:
-			return
 		
 		channel = self.client.get_channel(chid)
 		msg = await channel.fetch_message(payload.message_id)
+		chid = msg.channel.id
+		if not chid in self.channels:
+			return
+		
 		
 		# Check if peroentry exists. If not, do nothing
 		if not self.buxman.peros_exists(uid, chid):

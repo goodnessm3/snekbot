@@ -1,0 +1,3 @@
+CREATE TABLE tags (
+	tag NVARCHAR(32) PRIMARY KEY
+)

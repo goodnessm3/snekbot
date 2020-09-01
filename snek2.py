@@ -245,7 +245,7 @@ async def xmas(ctx):
 
 
 bot.regexes = {re.compile('''a big [^\?^\s]+\Z'''): on_bane,
-               re.compile('''(\S*) is kill\Z\.*'''): on_kill,
+               re.compile('''((?!is kill).*) is kill\.*\Z'''): on_kill,
                re.compile('''yeet'''): on_yeet
                }
 

@@ -46,6 +46,8 @@ class Gelbooru(commands.Cog):
     @commands.command()
     @commands.cooldown(1, 120, type=commands.BucketType.user)
     async def value(self, ctx):
+        """value the last gelbooru image searched"""
+
 
         """
         I guess comparing tags works, but there could be some super rare occasion, where the tags are identical.
