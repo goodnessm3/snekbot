@@ -1,12 +1,13 @@
 import discord
 from discord.ext import commands
-import os
 import asyncio
-import sys
+import subprocess
+
 
 def check(msg):
 
     return msg.content == "```taking picture... please wait warmly```"
+
 
 class Plant(commands.Cog):
 
@@ -21,8 +22,7 @@ class Plant(commands.Cog):
 
         self.expecting.add(ctx.message.channel.id)
         await ctx.message.channel.send("```taking picture... please wait warmly```")
-        print("plantplant")  # print message to stdout that's monitored for by the camera script
-        sys.stdout.flush()
+
         if not self.waiting:
             self.waiting = True
             try:
@@ -33,23 +33,25 @@ class Plant(commands.Cog):
 
     async def send_plant_pic(self):
 
-        pic_mod_time = os.stat("plant.jpg").st_mtime
-        while 1:
-            mod_time = os.stat("plant.jpg").st_mtime
-            if not mod_time == pic_mod_time:
-                await asyncio.sleep(2)  # wait for the file to be written
-                for chan_id in self.expecting:
-                    chan = self.bot.get_channel(chan_id)
-                    await chan.send("", file=discord.File("plant.jpg"))
-                    try:
-                        await chan.purge(check=check)
-                    except discord.ext.commands.errors.CommandInvokeError:
-                        print("couldn't delete message!")
-                await asyncio.sleep(5)  # make absolutely sure the file has finished being written
-                self.expecting.clear()
-                self.waiting = False
-                return
-            await asyncio.sleep(1)
+        error = False
+        retcode = subprocess.run(["ffmpeg", "-y", "-i", "rtmp://localhost:5000/live", "-vframes", "1", "plant.jpg"])
+        if not retcode == 0:
+            error = True
+        for chan_id in self.expecting:
+            chan = self.bot.get_channel(chan_id)
+            if error:
+                await chan.send("Something went wrong!")
+            else:
+                await chan.send("", file=discord.File("plant.jpg"))
+            try:
+                await chan.purge(check=check)
+            except discord.ext.commands.errors.CommandInvokeError:
+                print("couldn't delete message!")
+
+        self.expecting.clear()
+        self.waiting = False
+        return
+
 
 def setup(bot):
     bot.add_cog(Plant(bot))
