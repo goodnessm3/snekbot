@@ -372,7 +372,6 @@ class Peros(commands.Cog):
 		
 		channel = self.client.get_channel(payload.channel_id)
 		msg = await channel.fetch_message(payload.message_id)
-		
 		uid = msg.author.id
 		
 		# Check if peroentry exists. If not, do nothing
