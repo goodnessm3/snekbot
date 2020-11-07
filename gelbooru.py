@@ -39,19 +39,6 @@ class Gelbooru(commands.Cog):
             self.bot.loop.create_task(self.check_monitored_tag(tag, cid))
             print("scheduled checking of tag {}".format(tag))
 
-    async def random(self, ctx):
-        candidates = []
-        try:
-            candidates.append(self.serv.get_random_tag())
-            candidates.append(self.serv.get_random_tag())
-            candidates.append(self.serv.get_random_tag())
-        except Exception as e:
-            await ctx.message.channel.send(e)
-            can = self.last_search[ctx.message.channel.id].split(" ")
-            candidates = random.sample(can, min(3, len(can)))
-        res = await self.get_image(candidates)
-        await ctx.message.channel.send(res)
-
 
     async def ret_nr_tags(self,ctx):
         try:
@@ -197,7 +184,9 @@ class Gelbooru(commands.Cog):
 
     async def myget(self, *args):
 
-        url = self.url.format("+".join(args))
+        tags = [x.replace("&", "%26") for x in args]
+
+        url = self.url.format("+".join(tags))
         async with self.sesh.get(url) as r:
             async with timeout(10):
                 a = await r.text()
