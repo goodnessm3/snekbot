@@ -272,4 +272,3 @@ async def on_message(message):
 
 print(discord.__version__)
 bot.run(bot.settings["client_secret"])
-

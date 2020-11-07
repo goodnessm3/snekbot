@@ -39,13 +39,6 @@ class Gelbooru(commands.Cog):
             self.bot.loop.create_task(self.check_monitored_tag(tag, cid))
             print("scheduled checking of tag {}".format(tag))
 
-
-    async def ret_nr_tags(self,ctx):
-        try:
-            return self.serv.get_nr_tags()
-        except:
-            return -1
-
     @commands.command()
     async def nr_tags(self,ctx):
         try:
@@ -149,7 +142,10 @@ class Gelbooru(commands.Cog):
         res, tags = await self.get_image(*args)
         self.last_search[ctx.message.channel.id] = tags
         await ctx.message.channel.send(res)
-        await self.add_tags(ctx)
+        try:
+            await self.add_tags(ctx)
+        except:
+            pass
 
     async def get_image(self, *args):
 
