@@ -42,7 +42,7 @@ class Gelbooru(commands.Cog):
     @commands.command()
     async def nr_tags(self,ctx):
         try:
-            await ctx.message.channel.send("I currently know " + str(self.serv.get_nr_tags()) + " tags")
+            await ctx.message.channel.send("I currently know " + str(await self.serv.get_nr_tags()) + " tags")
         except:
             await ctx.message.channel.send("I am not connected to any server!")
 
@@ -104,13 +104,7 @@ class Gelbooru(commands.Cog):
     async def add_tags(self,ctx):
         tag_list =(await self.get_tags(ctx))
         tags = tag_list.split(" ")
-
-        #await ctx.message.channel.send("Adding the tag " + str(tags))
-        #random.seed()
-        #nr = random.randint(3,10)
-        #await ctx.message.channel.send("A tag is: " + str(tags[nr]))
-        for i in range(len(tags)):
-            self.serv.add_tag(tags[i])
+        await self.serv.add_tag(tags)
 
 
 
@@ -127,7 +121,7 @@ class Gelbooru(commands.Cog):
                 tagpool = tagpool.split(" ")
             candidates = []
             try:
-                candidates.append(self.serv.get_random_tag())
+                candidates.append(await self.serv.get_random_tag())
             except:
                 candidates = random.sample(tagpool, min(3, len(tagpool)))
             out = "I searched for: {}".format(", ".join(candidates))
