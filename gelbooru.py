@@ -6,7 +6,7 @@ import json
 import asyncio
 from collections import defaultdict
 import clean_text as ct
-
+from Tree_Server import Tree_Server
 
 class Gelbooru(commands.Cog):
 
@@ -25,6 +25,9 @@ class Gelbooru(commands.Cog):
         self.monitoring_times = defaultdict(lambda: 25000)  # {tag:int}
         # number of seconds to wait before querying, gradually increases if no new tag is found
 
+        self.serv = Tree_Server(self.bot.settings["tagserver_url"],2012)
+
+
         with open("tag_values.json", "r") as f:
             self.tag_values = json.load(f)
 
@@ -36,12 +39,13 @@ class Gelbooru(commands.Cog):
             self.bot.loop.create_task(self.check_monitored_tag(tag, cid))
             print("scheduled checking of tag {}".format(tag))
 
-    async def random(self, ctx):
+    @commands.command()
+    async def nr_tags(self,ctx):
+        try:
+            await ctx.message.channel.send("I currently know " + str(self.serv.get_nr_tags()) + " tags")
+        except:
+            await ctx.message.channel.send("I am not connected to any server!")
 
-        can = self.last_search[ctx.message.channel.id].split(" ")
-        candidates = random.sample(can, min(3, len(can)))
-        res = await self.get_image(candidates)
-        await ctx.message.channel.send(res)
 
     @commands.command()
     @commands.cooldown(1, 120, type=commands.BucketType.user)
@@ -91,6 +95,25 @@ class Gelbooru(commands.Cog):
         out = ct.discordStringEscape(out)
         await ctx.message.channel.send(out)
 
+    async def get_tags(self,ctx):
+        if not self.last_search.get(ctx.message.channel.id, None):
+            # got a None result
+            return []
+        return self.last_search[ctx.message.channel.id]
+
+    async def add_tags(self,ctx):
+        tag_list =(await self.get_tags(ctx))
+        tags = tag_list.split(" ")
+
+        #await ctx.message.channel.send("Adding the tag " + str(tags))
+        #random.seed()
+        #nr = random.randint(3,10)
+        #await ctx.message.channel.send("A tag is: " + str(tags[nr]))
+        for i in range(len(tags)):
+            self.serv.add_tag(tags[i])
+
+
+
     @commands.command()
     async def gelbooru(self, ctx, *args):
 
@@ -102,8 +125,11 @@ class Gelbooru(commands.Cog):
                 tagpool = self.fallback_tags
             else:
                 tagpool = tagpool.split(" ")
-            
-            candidates = random.sample(tagpool, min(3, len(tagpool)))
+            candidates = []
+            try:
+                candidates.append(self.serv.get_random_tag())
+            except:
+                candidates = random.sample(tagpool, min(3, len(tagpool)))
             out = "I searched for: {}".format(", ".join(candidates))
             out = ct.discordStringEscape(out)
             await ctx.message.channel.send(out)
@@ -116,6 +142,10 @@ class Gelbooru(commands.Cog):
         res, tags = await self.get_image(*args)
         self.last_search[ctx.message.channel.id] = tags
         await ctx.message.channel.send(res)
+        try:
+            await self.add_tags(ctx)
+        except:
+            pass
 
     async def get_image(self, *args):
 
@@ -150,7 +180,9 @@ class Gelbooru(commands.Cog):
 
     async def myget(self, *args):
 
-        url = self.url.format("+".join(args))
+        tags = [x.replace("&", "%26") for x in args]
+
+        url = self.url.format("+".join(tags))
         async with self.sesh.get(url) as r:
             async with timeout(10):
                 a = await r.text()
