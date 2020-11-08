@@ -14,9 +14,9 @@ async def send_int(conn,val):
     conn.send(socket.htonl(val).to_bytes(4,sys.byteorder))
 
 async def send_str(conn,val):
-    eval = val.encode()
-    await send_int(conn,len(eval))
-    conn.send(eval)
+    encval = val.encode()
+    await send_int(conn,len(encval))
+    conn.send(encval)
 
 async def send_list(conn,list):
     await send_int(conn,len(list))
