@@ -172,11 +172,14 @@ class Gelbooru(commands.Cog):
         await ctx.message.channel.send(res)
         self.dbman.log_search(ctx.message.author.id, self.last_tags[cid])
 
-    async def myget(self, *args):
+    async def myget(self, *args, limit=False):
 
-        tags = [x.replace("&", "%26") for x in args]
+        tags = [x.replace("&", "%26") for x in args]  
+        # TODO: actually use a nice url escaping function that handles all special characters not just &
 
         url = self.url.format("+".join(tags))
+        if limit:
+            url += "&limit=1"
         async with self.sesh.get(url) as r:
             async with timeout(10):
                 a = await r.text()
@@ -237,8 +240,8 @@ class Gelbooru(commands.Cog):
         print("checking gelbooru for tag {}".format(tag))
         this_tag, last = self.dbman.get_last_monitored(tag, cid)  # it's a tuple, needs to be unpacked
         # format of tuple is (tag, last, channel_id)
-        new_xml = await(self.myget(tag, "&limit=1"))
-        # including &limit as a tag is a nasty hack but it saves having to use two different URLs
+        new_xml = await(self.myget(tag, limit=True"))
+        
         posts = new_xml.findall("post")
         most_recent = posts[0].get("md5")
         tags = posts[0].get("tags")
