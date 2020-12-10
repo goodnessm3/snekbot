@@ -240,7 +240,7 @@ class Gelbooru(commands.Cog):
         print("checking gelbooru for tag {}".format(tag))
         this_tag, last = self.dbman.get_last_monitored(tag, cid)  # it's a tuple, needs to be unpacked
         # format of tuple is (tag, last, channel_id)
-        new_xml = await(self.myget(tag, limit=True"))
+        new_xml = await(self.myget(tag, limit=True))
         
         posts = new_xml.findall("post")
         most_recent = posts[0].get("md5")
