@@ -17,6 +17,7 @@ import re
 from user_stats import Manager
 import clean_text as ct
 import pronouns
+from cleverwrap import CleverWrap
 
 prefixes = ["?", "Snek ", "snek ", "SNEK "]   # note trailing space in name prefix
 settings = {}  # overwritten by loading functions below
@@ -35,6 +36,8 @@ else:
 bot.buxman = Manager(bot)
 bot.settings = settings
 bot.sesh = aiohttp.ClientSession(loop=bot.loop)
+cb = CleverWrap(settings["cleverbot_token"])
+bot.last_chat = datetime.datetime.now()  # to determine when to reset the cleverbot interaction
 
 with open("snektext.json", "r") as f:
     bot.text = json.load(f)
@@ -254,6 +257,15 @@ bot.regexes = {re.compile('''a big [^\?^\s]+\Z'''): on_bane,
 async def on_message(message):
 
     cont = message.content
+    ctx = await bot.get_context(message)
+    if ctx.command is None and message.content.startswith(tuple(prefixes)):
+        # the message is addressed to snek but doesn't contain a command, send the text to cleverbot for a response
+        now = datetime.datetime.now()
+        if (now - bot.last_chat).seconds > 500:
+            cb.reset()  # don't resume an old conversation, start a new one
+        response = cb.say(message.content[5:])  # strip off "snek "
+        await message.channel.send(response)  # probably bad that this API is not async
+        bot.last_chat = datetime.datetime.now()
 
     if random.randint(0, 150) == 13:
         await message.add_reaction(chr(127814))  # eggplant
