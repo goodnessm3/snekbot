@@ -3,13 +3,7 @@ from discord.ext import commands
 import aiohttp
 import json
 import random
-import asyncio
-from async_timeout import timeout
-from itertools import cycle
-import getpass
 from sys import exit, argv
-from collections import defaultdict
-import time
 import datetime
 import slot_machine
 from iskill import is_kill
@@ -38,6 +32,7 @@ bot.settings = settings
 bot.sesh = aiohttp.ClientSession(loop=bot.loop)
 cb = CleverWrap(settings["cleverbot_token"])
 bot.last_chat = datetime.datetime.now()  # to determine when to reset the cleverbot interaction
+bot.cbchannels = settings["cleverbot_channels"]
 
 with open("snektext.json", "r") as f:
     bot.text = json.load(f)
@@ -258,14 +253,17 @@ async def on_message(message):
 
     cont = message.content
     ctx = await bot.get_context(message)
-    if ctx.command is None and message.content.startswith(tuple(prefixes)):
-        # the message is addressed to snek but doesn't contain a command, send the text to cleverbot for a response
-        now = datetime.datetime.now()
-        if (now - bot.last_chat).seconds > 500:
-            cb.reset()  # don't resume an old conversation, start a new one
-        response = cb.say(message.content[5:])  # strip off "snek "
-        await message.channel.send(response)  # probably bad that this API is not async
-        bot.last_chat = datetime.datetime.now()
+
+    if message.channel.id in bot.cbchannels:
+        if ctx.command is None and message.content.startswith(tuple(prefixes)):
+            # the message is addressed to snek but doesn't contain a command, send the text to cleverbot for a response
+            now = datetime.datetime.now()
+            if (now - bot.last_chat).seconds > 500:
+                cb.reset()  # don't resume an old conversation, start a new one
+            async with message.channel.typing():
+                response = cb.say(message.content[5:])  # strip off "snek "
+            await message.channel.send(response)  # probably bad that this API is not async
+            bot.last_chat = datetime.datetime.now()
 
     if random.randint(0, 150) == 13:
         await message.add_reaction(chr(127814))  # eggplant
