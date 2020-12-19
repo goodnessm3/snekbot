@@ -25,7 +25,7 @@ class Gelbooru(commands.Cog):
         self.monitoring_times = defaultdict(lambda: 25000)  # {tag:int}
         # number of seconds to wait before querying, gradually increases if no new tag is found
 
-        self.serv = Tree_Server(self.bot.settings["tagserver_url"],2012)
+        self.serv = Tree_Server(self.bot.settings["tagserver_url"], 2012)
 
 
         with open("tag_values.json", "r") as f:
@@ -132,7 +132,7 @@ class Gelbooru(commands.Cog):
         else:
             self.dbman.log_search(ctx.message.author.id, args)
 
-        self.last_tags[ctx.message.channel.id] = args
+        self.last_tags[ctx.message.channel.id] = list(args)
         res, tags = await self.get_image(*args)
         self.last_search[ctx.message.channel.id] = tags
         await ctx.message.channel.send(res)
@@ -164,7 +164,8 @@ class Gelbooru(commands.Cog):
                     new_tags.append(x)
 
         if new_tags:
-            new_tags = tuple(new_tags)
+            #  new_tags = tuple(new_tags)  we are using lists now instead, the gelbooru func converts its args tuple
+            #  to a list before storing it
             self.last_tags[cid] = self.last_tags[cid] + new_tags  # append extra tags for further "again" searches
 
         res, tags = await self.get_image(*self.last_tags[cid])
