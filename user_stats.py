@@ -1,5 +1,6 @@
 import sqlite3
 import re
+from collections import defaultdict
 
 
 class Manager:
@@ -160,3 +161,35 @@ class Manager:
         if res is None:
             return 0
         return res
+
+    def gelbooru_stats(self):
+
+        def get_max(dc):
+
+            """Takes a dictionary and returns the key and value for the pair with the largest value"""
+
+            max_cnt = 0
+            max_key = None
+            for k, v in dc.items():
+                if v > max_cnt:
+                    max_cnt = v
+                    max_key = k
+
+            return max_key, max_cnt
+
+        self.cursor.execute('''SELECT uid, tags FROM searches WHERE stime > datetime("now", "-7 days")''')
+        usr_count = defaultdict(lambda: 0)
+        tag_count = defaultdict(lambda: 0)
+        total = 0  # total searches made
+        for a, b in self.cursor.fetchall():
+            total += 1
+            usr_count[a] += 1
+            for q in b.split(" "):
+                tag_count[q] += 1
+
+        return get_max(usr_count) + get_max(tag_count) + (total,)
+        #  returns (user ID of most frequent user, how many times in past week, most popular tag, how many times)
+
+
+
+

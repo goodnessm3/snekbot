@@ -273,6 +273,17 @@ class Gelbooru(commands.Cog):
         # re-add task to the bot loop, apparently no native asyncio support for periodic tasks
         print("base_time for tag {} is now {}".format(tag, self.monitoring_times[tag]))
 
+    @commands.command()
+    async def gelbooru_stats(self, ctx):
+
+        user, cnt1, tag, cnt2, total = self.dbman.gelbooru_stats()
+
+        msg = f"The most popular tag for the last week is \"{tag}\", with {cnt2} searches! " \
+              f"The most prolific user of the week is <@!{user}>, with {cnt1} searches! " \
+              f"A total of {total} gelbooru searches have been made in the last week."
+
+        await ctx.message.channel.send(msg)
+
 
 def setup(bot):
 
