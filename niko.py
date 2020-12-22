@@ -27,6 +27,14 @@ class twitterlistener(commands.Cog):
         auth.set_access_token(TI.C, TI.D)
         self.client = tweepy.API(auth)
         self.chanel_list = []
+        try:
+            with open("twitter_channels.txt", "r") as f:
+                for line in f.readlines():
+                    cid = line.rstrip("\n")
+                    self.chanel_list.append(self.bot.get_channel(cid))
+        except FileNotFoundError:
+            pass
+
         bot.loop.create_task(self.get_tweet())
 
     async def get_tweet(self):
@@ -44,6 +52,9 @@ class twitterlistener(commands.Cog):
     async def add_this(self,ctx):
             if (ctx.message.channel not in self.chanel_list):
                 self.chanel_list.append(ctx.message.channel)
+                with open("twitter_channels.txt", "a") as f:
+                    f.write(str(ctx.message.channel.id))
+                    f.write("\n")
                 await ctx.message.channel.send("Added this channel to the list!")
                 tweet = self.client.user_timeline("3096462845", count=1)[0]
                 await ctx.message.channel.send(
