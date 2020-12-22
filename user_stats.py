@@ -3,6 +3,19 @@ import re
 from collections import defaultdict
 
 
+def get_max(dc):
+    """Takes a dictionary and returns the key and value for the pair with the largest value"""
+
+    max_cnt = 0
+    max_key = None
+    for k, v in dc.items():
+        if v > max_cnt:
+            max_cnt = v
+            max_key = k
+
+    return max_key, max_cnt
+
+
 class Manager:
 
     """Class to manage a database of discord id relating to various attributes"""
@@ -164,19 +177,6 @@ class Manager:
 
     def gelbooru_stats(self):
 
-        def get_max(dc):
-
-            """Takes a dictionary and returns the key and value for the pair with the largest value"""
-
-            max_cnt = 0
-            max_key = None
-            for k, v in dc.items():
-                if v > max_cnt:
-                    max_cnt = v
-                    max_key = k
-
-            return max_key, max_cnt
-
         self.cursor.execute('''SELECT uid, tags FROM searches WHERE stime > datetime("now", "-7 days")''')
         usr_count = defaultdict(lambda: 0)
         tag_count = defaultdict(lambda: 0)
@@ -189,6 +189,42 @@ class Manager:
 
         return get_max(usr_count) + get_max(tag_count) + (total,)
         #  returns (user ID of most frequent user, how many times in past week, most popular tag, how many times)
+
+    def trending_tag(self):
+
+        def countup(results):
+
+            """Takes the cursor.fetchall() iterator for space-delimited tag lists and returns a dict of {tag: count}"""
+
+            dc = defaultdict(lambda: 0)
+            for a in results:
+                for b in a[0].split(" "):
+                    dc[b] += 1
+            return dc
+
+        def max_diff(dc1, dc2):
+
+            """Returns the tag with the biggest increase in counts between dc1 and dc2 (dc2 is the later one)"""
+            diff = 0
+            tag = None
+            for k in dc2.keys():
+                d = dc2[k] - dc1[k]
+                if d > diff:
+                    diff = d
+                    tag = k
+            return tag, diff
+
+        self.cursor.execute('''SELECT tags FROM searches WHERE stime > datetime("now", "-7 days")''')
+        d1 = countup(self.cursor.fetchall())
+        self.cursor.execute('''SELECT tags FROM searches
+                                WHERE stime > datetime("now", "-14 days")
+                                AND stime < datetime("now", "-7 days")''')
+        d2 = countup(self.cursor.fetchall())
+
+        return max_diff(d1, d2)
+
+
+
 
 
 

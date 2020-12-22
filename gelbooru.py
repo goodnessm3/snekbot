@@ -284,6 +284,20 @@ class Gelbooru(commands.Cog):
 
         await ctx.message.channel.send(msg)
 
+    @commands.command()
+    async def trending_tag(self, ctx):
+
+        hot_tag, counts = self.dbman.trending_tag()
+        word = random.choice(["hottest", "hippest", "trending", "most popular"])
+
+        res, tags = await self.get_image(hot_tag)
+        self.last_search[ctx.message.channel.id] = tags
+
+        msg = f"The {word} new tag this week is **{hot_tag}**, with **{counts}** more searches " \
+              f"than the previous week! Here's an example: {res}"
+
+        await ctx.message.channel.send(msg)
+
 
 def setup(bot):
 
