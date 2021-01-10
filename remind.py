@@ -34,12 +34,15 @@ class Reminder(commands.Cog):
         dat = self.date_finder.search(in_string)
         if dat:
             # try for an exact ISO time first
-            future_time = datetime.datetime.fromisoformat(dat.group())
+            # future_time = datetime.datetime.fromisoformat(dat.group())  # this function is only available in 3.7+!
+            y, m, d = dat.group().split("-")
+            future_time = datetime.datetime(int(y), int(m), int(d))  # works on earlier python versions
             delt = future_time - datetime.datetime.now()
             delay = int(delt.total_seconds())
+            extracted = self.strip_date(in_string)
         else:
             delay = self.find_time(in_string)  # the delay in seconds regardless of the unit the user used
-        extracted = self.strip_time(in_string)
+            extracted = self.strip_time(in_string)
         to_send = "{}, reminder: {}!".format(ctx.message.author.mention, extracted)
         print_delay = datetime.timedelta(seconds=delay)
         await ctx.message.channel.send("OK! I'll remind you in {}.".format(print_delay))
@@ -61,6 +64,10 @@ class Reminder(commands.Cog):
     def strip_time(self, astr):
 
         return self.time_finder.sub("", astr)
+
+    def strip_date(self, astr):
+
+        return self.date_finder.sub("", astr)
 
 
 def setup(bot):
