@@ -26,6 +26,7 @@ class Manager:
         self.cursor = self.db.cursor()
         self.bot = bot
         self.input_checker = re.compile("[0-9A-Za-z!,.?&\"'+-]{,50}")
+        self.prune_reminders()
 
     def check_input_string(self, astr):
 
@@ -88,18 +89,28 @@ class Manager:
 
         self.db.commit()
 
-    def add_reminder(self, uid, time, message, channel_id):
+    def add_reminder(self, uid, message, channel_id, delay):
 
-        self.cursor.execute('''
-        insert into reminders (uid, timestamp, message, channel_id) values(?, ?, ?, ?)''',
-                            (uid, time, message, channel_id))
+        delaystr = f"+{delay} seconds"
+        self.cursor.execute(f'''
+        insert into reminders (uid, message, channel_id, timestamp) values(?, ?, ?, datetime("now", "{delaystr}"))''',
+                            (uid, message, channel_id))
+        # need to use an f-string to calculate the delay in the datetime function
         self.db.commit()
 
-    def get_reminders(self, now):
+    def prune_reminders(self):
 
-        # return a list of tuples of all reminders whose time is greater than now (seconds since epoch)
+        """Delete reminders that are in the past from the db, to be run on bot startup"""
 
-        self.cursor.execute('''select * from reminders where timestamp > ?''', (now,))
+        self.cursor.execute('''delete from reminders where timestamp < datetime("now") or timestamp is null''')
+        # also catch null timestamp for when the command was entered wrong
+        self.db.commit()
+
+    def get_reminders(self):
+
+        """return a list of tuples of all reminders whose time is greater than now (seconds since epoch)"""
+
+        self.cursor.execute('''select * from reminders where timestamp > datetime("now")''')
         return self.cursor.fetchall()
 
     def insert_monitored(self, tag, channel, last=None):

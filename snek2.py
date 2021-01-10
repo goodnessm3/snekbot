@@ -38,7 +38,7 @@ with open("snektext.json", "r") as f:
     bot.text = json.load(f)
 
 # load default cogs
-for cog in ["plant", "gelbooru", "peros", "niko"]:
+for cog in ["plant", "gelbooru", "peros", "niko", "remind"]:
     bot.load_extension(cog)
 
 
