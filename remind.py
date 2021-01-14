@@ -18,7 +18,9 @@ class Reminder(commands.Cog):
         for rem in reminders:
             uid, timestamp, message, rid, channel_id = rem
             chan = self.bot.get_channel(channel_id)  # need to recreate the discord object from saved id
-            future_time = datetime.datetime.fromisoformat(timestamp)
+            # future_time = datetime.datetime.fromisoformat(timestamp) not for 3.7
+            y, m, d = timestamp[:10].split("-")
+            future_time = datetime.datetime(int(y), int(m), int(d))  # works on earlier python versions
             delay = future_time - datetime.datetime.now()
             self.bot.loop.call_later(int(delay.total_seconds()),
                                      lambda: asyncio.ensure_future(chan.send(message)))
