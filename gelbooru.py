@@ -109,7 +109,6 @@ class Gelbooru(commands.Cog):
 
 
     @commands.command()
-    @commands.cooldown(10, 180, type=commands.BucketType.user)
     async def gelbooru(self, ctx, *args):
 
         """look up a picture on gelbooru"""
@@ -152,7 +151,7 @@ class Gelbooru(commands.Cog):
             return '''{} results.\n{}'''.format(counts, url), tags
 
     @commands.command()
-    @commands.cooldown(1, 4, type=commands.BucketType.user)
+    @commands.cooldown(8, 180, type=commands.BucketType.user)
     async def again(self, ctx, *args):
 
         """repeat the last search, optionally with extra tags"""
