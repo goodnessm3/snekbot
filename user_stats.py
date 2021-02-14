@@ -244,6 +244,7 @@ class Manager:
     def increment_streak(self, uid):
 
         self.cursor.execute('''UPDATE stats SET level = level + 1 WHERE uid = ?''', (uid,))
+        self.db.commit()
 
     def get_streak(self, uid):
 
