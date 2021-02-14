@@ -234,9 +234,31 @@ class Manager:
 
         return max_diff(d1, d2)
 
+    def daily_time(self, uid):
 
+        """Returns the time the user last used 'snek daily'"""
 
+        self.cursor.execute('''SELECT last_time FROM stats WHERE uid = ?''', (uid,))
+        return self.cursor.fetchone()[0]
 
+    def increment_streak(self, uid):
+
+        self.cursor.execute('''UPDATE stats SET level = level + 1 WHERE uid = ?''', (uid,))
+
+    def get_streak(self, uid):
+
+        self.cursor.execute('''SELECT level FROM stats WHERE uid = ?''', (uid,))
+        return self.cursor.fetchone()[0]
+
+    def reset_streak(self, uid):
+
+        self.cursor.execute('''UPDATE stats SET level = 0 WHERE uid = ?''', (uid,))
+        self.db.commit()
+
+    def increment_daily_time(self, uid, tm):
+
+        self.cursor.execute('''UPDATE stats SET last_time = ? WHERE uid = ?''', (tm, uid))
+        self.db.commit()
 
 
 
