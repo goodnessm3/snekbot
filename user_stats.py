@@ -42,9 +42,9 @@ class Manager:
         restuple = self.cursor.fetchone()
         if restuple is None:  # User has no entry in stats. Make a new one
             self.cursor.execute('''
-            insert into stats (uid, bux) select ?, ? where (select changes() = 0)
-            ''', (uid, 0))
-            return 0
+            insert into stats (uid, bux, level) values (?, 0, 0)
+            ''', (uid))
+            return 0  # we know this is the right value because we just put it in the db
         
         return restuple[0]  # if the user just wants one value, return a value rather than tuple
 
