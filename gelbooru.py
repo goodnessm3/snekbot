@@ -7,13 +7,15 @@ import asyncio
 from collections import defaultdict
 import clean_text as ct
 from Tree_Server import Tree_Server
+import aiohttp
+
 
 class Gelbooru(commands.Cog):
 
     def __init__(self, bot):
 
         self.bot = bot
-        self.sesh = bot.sesh  # aiohttp session for web responses
+        #self.sesh = bot.sesh  # aiohttp session for web responses
         self.url = "https://gelbooru.com/index.php?page=dapi&s=post&q=index&tags=rating:safe+{}"
         self.seen = []
         self.last_tags = {}  # the last tags someone asked for, use for repeat searches
@@ -27,7 +29,6 @@ class Gelbooru(commands.Cog):
 
         self.serv = Tree_Server(self.bot.settings["tagserver_url"], 2012)
 
-
         with open("tag_values.json", "r") as f:
             self.tag_values = json.load(f)
 
@@ -38,20 +39,17 @@ class Gelbooru(commands.Cog):
             print("scheduled checking of tag {}".format(tag))
 
     @commands.command()
-    async def nr_tags(self,ctx):
+    async def nr_tags(self, ctx):
         try:
             await ctx.message.channel.send("I currently know " + str(await self.serv.get_nr_tags()) + " tags")
         except:
             await ctx.message.channel.send("I am not connected to any server!")
 
-
     @commands.command()
     @commands.cooldown(1, 120, type=commands.BucketType.user)
     async def value(self, ctx):
-        """value the last gelbooru image searched"""
+        """value the last gelbooru image searched
 
-
-        """
         I guess comparing tags works, but there could be some super rare occasion, where the tags are identical.
         Dont know if gelbooru sorts the tags. If they dont, its even more rare. To have the same tags and the tags
         being listed in the same order.
@@ -93,18 +91,18 @@ class Gelbooru(commands.Cog):
         out = ct.discordStringEscape(out)
         await ctx.message.channel.send(out)
 
-    async def get_tags(self,ctx):
+    async def get_tags(self, ctx):
+
         if not self.last_search.get(ctx.message.channel.id, None):
             # got a None result
             return []
         return self.last_search[ctx.message.channel.id]
 
-    async def add_tags(self,ctx):
-        tag_list =(await self.get_tags(ctx))
+    async def add_tags(self, ctx):
+
+        tag_list = (await self.get_tags(ctx))
         tags = tag_list.split(" ")
         await self.serv.add_tag(tags)
-
-
 
     @commands.command()
     async def gelbooru(self, ctx, *args):
@@ -179,9 +177,10 @@ class Gelbooru(commands.Cog):
         url = self.url.format("+".join(tags))
         if limit:
             url += "&limit=1"
-        async with self.sesh.get(url) as r:
-            async with timeout(10):
-                a = await r.text()
+        async with aiohttp.ClientSession(loop=self.bot.loop) as s:
+            async with s.get(url) as r:
+                async with timeout(10):
+                    a = await r.text()
 
         xml = ElementTree.fromstring(a)
         return xml
@@ -244,7 +243,7 @@ class Gelbooru(commands.Cog):
         posts = new_xml.findall("post")
         most_recent = posts[0].get("md5")
         tags = posts[0].get("tags")
-        print("old md5 was {}, new is {}".format(last, most_recent))
+        # print("old md5 was {}, new is {}".format(last, most_recent))
         base_time = self.monitoring_times[tag]
         if most_recent == last:
             self.monitoring_times[tag] = base_time + 10000  # check less frequently
@@ -253,7 +252,6 @@ class Gelbooru(commands.Cog):
             self.dbman.insert_monitored(tag, channel=cid, last=most_recent)
             # also update db before splitting the tags in case monitoring for a multi-tag query
             new_tags = tags.split(" ")
-            print(new_tags)
             all_monitored_tags = [z[0] for z in self.dbman.get_all_monitored()]
             if "+" not in tag:
                 for q in new_tags:
@@ -277,7 +275,6 @@ class Gelbooru(commands.Cog):
         user, cnt1, tag, cnt2, total = self.dbman.gelbooru_stats()
 
         msg = f"The most popular tag for the last week is \"{tag}\", with {cnt2} searches! " \
-              f"The most prolific user of the week is <@!{user}>, with {cnt1} searches! " \
               f"A total of {total} gelbooru searches have been made in the last week."
 
         await ctx.message.channel.send(msg)

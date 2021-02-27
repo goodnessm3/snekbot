@@ -1,10 +1,8 @@
-import asyncio
 import discord
 from discord.ext import commands
-import aiohttp
 import json
 import random
-from sys import exit, argv
+from sys import argv
 import datetime
 import slot_machine
 from iskill import is_kill
@@ -30,7 +28,9 @@ else:
 
 bot.buxman = Manager(bot)
 bot.settings = settings
-bot.sesh = aiohttp.ClientSession(loop=bot.loop)
+# bot.sesh = aiohttp.ClientSession(loop=bot.loop)
+# this has been moved to an "async with" statement in the gelbooru cog so that the
+# session is created inside an async function
 cb = CleverWrap(settings["cleverbot_token"])
 bot.last_chat = datetime.datetime.now()  # to determine when to reset the cleverbot interaction
 bot.cbchannels = settings["cleverbot_channels"]
@@ -43,7 +43,7 @@ def is_owner(ctx):
     return ctx.message.author.id == bot.settings["owner_id"]
 
 
-async def on_yeet(msg, *args):
+async def on_yeet(msg):
 
     b = bot.buxman.get_bux(msg.author.id)
     if b > 10:
@@ -53,7 +53,7 @@ async def on_yeet(msg, *args):
         await msg.channel.send('''lmao, "yeet" XDDDD''')
 
 
-async def on_bane(msg, *args):
+async def on_bane(msg):
 
     await msg.channel.send("for you.")
 
@@ -107,6 +107,7 @@ async def on_ready():
         bot.load_extension(cog)
     print("loaded default cogs")
 
+
 @bot.command()
 async def logout(ctx):
 
@@ -114,7 +115,6 @@ async def logout(ctx):
 
     if ctx.message.author.id == bot.settings["owner_id"]:
         print("logging out")
-        await bot.sesh.close()  # close web session nicely
         await ctx.message.channel.send("Bye bye")
         await bot.logout()
 
@@ -171,9 +171,9 @@ async def rate(ctx, *args):
 @bot.command()
 async def bux(ctx):
 
-    uid = str(ctx.message.author.id)
     bux = bot.buxman.get_bux(ctx.message.author.id)
     await ctx.message.channel.send("{}, you have {} snekbux.".format(ctx.message.author.mention, bux))
+
 
 @bot.event
 async def on_command_error(ctx, error):
@@ -195,7 +195,7 @@ async def slots(ctx, *args):
 
     if not args:
         amount = 50
-    if args:
+    else:
         try:
             amount = int(args[0])
         except ValueError:
