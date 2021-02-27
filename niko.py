@@ -32,7 +32,7 @@ class TwitterListener(commands.Cog):
         try:
             with open("twitter_channels.txt", "r") as f:
                 for line in f.readlines():
-                    cid = line.rstrip("\n")
+                    cid = int(line.rstrip("\n"))
                     # bot.get_channel will just return None if you give it a string
                     self.channel_list.append(cid)
         except FileNotFoundError:
@@ -43,12 +43,11 @@ class TwitterListener(commands.Cog):
 
     async def get_tweet(self):
 
-        print(self.channel_list)
         tweet = self.client.user_timeline("3096462845", count=1)[0]
 
         if tweet.in_reply_to_status_id is None and tweet.id != self.latest_tweet:
             for q in self.channel_list:
-                i = self.bot.get_channel(q)
+                i = self.bot.get_channel(q)  # get_channel expects an INT
                 await i.send("https://twitter.com/"+tweet.user.name+"/status/"+str(tweet.id))
                 await i.send("https://tenor.com/view/niko-gif-18543948")
             self.latest_tweet = tweet.id
@@ -59,8 +58,8 @@ class TwitterListener(commands.Cog):
     @commands.command()
     async def add_this(self, ctx):
 
-        if str(ctx.message.channel.id) not in self.channel_list:
-            self.channel_list.append(str(ctx.message.channel.id))
+        if ctx.message.channel.id not in self.channel_list:
+            self.channel_list.append(ctx.message.channel.id)
             with open("twitter_channels.txt", "a") as f:
                 f.write(str(ctx.message.channel.id))
                 f.write("\n")

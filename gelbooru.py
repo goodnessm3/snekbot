@@ -34,8 +34,6 @@ class Gelbooru(commands.Cog):
         mons = self.dbman.get_all_monitored()
         for x in mons:
             tag, cid = x
-            print("aaa")
-            print(tag)
             self.bot.loop.create_task(self.check_monitored_tag(tag, cid))
             print("scheduled checking of tag {}".format(tag))
 

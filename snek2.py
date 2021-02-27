@@ -1,3 +1,4 @@
+import asyncio
 import discord
 from discord.ext import commands
 import aiohttp
@@ -36,10 +37,6 @@ bot.cbchannels = settings["cleverbot_channels"]
 
 with open("snektext.json", "r") as f:
     bot.text = json.load(f)
-
-# load default cogs
-for cog in ["plant", "gelbooru", "peros", "niko", "remind"]:
-    bot.load_extension(cog)
 
 
 def is_owner(ctx):
@@ -105,7 +102,10 @@ async def reload(ctx, extension):
 @bot.event
 async def on_ready():
     print("Logged in as {0.user}".format(bot))
-
+    # load default cogs
+    for cog in ["plant", "gelbooru", "peros", "niko", "remind", "daily"]:
+        bot.load_extension(cog)
+    print("loaded default cogs")
 
 @bot.command()
 async def logout(ctx):

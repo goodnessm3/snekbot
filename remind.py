@@ -14,16 +14,25 @@ class Reminder(commands.Cog):
     def __init__(self, bot):
 
         self.bot = bot
+        self.bot.buxman.prune_reminders()
         reminders = self.bot.buxman.get_reminders()  # get all reminders from DB yet to be run
         for rem in reminders:
             uid, timestamp, message, rid, channel_id = rem
-            chan = self.bot.get_channel(channel_id)  # need to recreate the discord object from saved id
+            chan = self.bot.get_channel(int(channel_id))  # need to recreate the discord object from saved id
+            if not chan:  # bot couldn't resolve channel ID, maybe we are in testing mode or lost access to channel
+                print(f"Couldn't set reminder {message} in channel {channel_id}")
+                continue
             # future_time = datetime.datetime.fromisoformat(timestamp) not for 3.7
             y, m, d = timestamp[:10].split("-")
-            future_time = datetime.datetime(int(y), int(m), int(d))  # works on earlier python versions
-            delay = future_time - datetime.datetime.now()
-            self.bot.loop.call_later(int(delay.total_seconds()),
-                                     lambda: asyncio.ensure_future(chan.send(message)))
+            h, mi, s = timestamp[11:].split(":")
+            future_time = datetime.datetime(int(y), int(m), int(d), int(h), int(mi), int(s))
+            # works on earlier python versions
+            delay = future_time - datetime.datetime.now()  # this doesn't take into account the time of day
+            # it#s reading in the day but not the houes, seconds and minutes
+            print("delay is")
+            print(delay.total_seconds())
+            #self.bot.loop.call_later(int(delay.total_seconds()), chan.send, message)
+            self.bot.loop.call_later(int(delay.total_seconds()), lambda: asyncio.ensure_future(chan.send(message)))
 
             print("Added reminder to loop: {} at {}".format(message, timestamp))
 

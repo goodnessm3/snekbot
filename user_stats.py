@@ -26,7 +26,6 @@ class Manager:
         self.cursor = self.db.cursor()
         self.bot = bot
         self.input_checker = re.compile("[0-9A-Za-z!,.?&\"'+-]{,50}")
-        self.prune_reminders()
 
     def check_input_string(self, astr):
 
