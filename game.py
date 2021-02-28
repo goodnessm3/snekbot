@@ -138,8 +138,8 @@ class SnekGame(commands.Cog):
                 out.append(st)
                 self.bot.buxman.adjust_bux(u.id, amount)  # always win more than you bet
             else:
-                out.append(f"{u.mention} lost {amount + buyin} snekbux on this game! Too bad!")
-                self.bot.buxman.adjust_bux(u.id, -(amount+buyin))
+                out.append(f"{u.mention} lost {amount + cost} snekbux on this game! Too bad!")
+                self.bot.buxman.adjust_bux(u.id, -(amount+cost))
 
         await chan.send("\n".join(out))
 
