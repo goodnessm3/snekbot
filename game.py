@@ -80,7 +80,7 @@ class SnekGame(commands.Cog):
         delay = random.randint(10,20)
         cost = random.randint(100,600)
         ms = f"The game will last for {delay} seconds and cost {cost} snekbux. Choose the tiles you want to play" \
-             f"in order, radially from the centre counterclockwise (standard rules apply).\n\n"
+             f" in order, radially from the centre counterclockwise (standard rules apply).\n\n"
         ms += self.make_matrix()
         msg = await ctx.message.channel.send(ms)
         chan = ctx.message.channel
