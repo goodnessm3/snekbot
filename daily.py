@@ -12,6 +12,8 @@ class Daily(commands.Cog):
     async def daily(self, ctx):
 
         uid = ctx.message.author.id
+        _ = self.bot.buxman.get_bux(uid)
+        #  first just query the bux and do nothing, this will create a new entry if one is required (new user)
         check, msg = self.time_check(uid)
         self.bot.buxman.increment_daily_time(uid, time.time())
         # just using the seconds since epoch for easy conversion back to a datetime object later
