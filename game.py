@@ -38,13 +38,13 @@ class SnekGame(commands.Cog):
 
     def make_matrix(self):
 
-        code = 129000
+        code = 128997
         out = ""
         for x in range(1, 10):
-            if self.chance(1):
+            if self.chance(2):
                 out += chr(9883)
             else:
-                out += chr(code + random.randint(-3, 3))
+                out += chr(code + random.randint(0, 5))
             if x % 3 == 0:
                 out += "\n"
         return out
@@ -79,8 +79,9 @@ class SnekGame(commands.Cog):
         self.running = True
         delay = random.randint(10,20)
         cost = random.randint(100,600)
+        rules = random.choice(["standard", "modified", "second-edition", "altered", "special", "normal", "regular"])
         ms = f"The game will last for {delay} seconds and cost {cost} snekbux. Choose the tiles you want to play" \
-             f" in order, radially from the centre counterclockwise (standard rules apply).\n\n"
+             f" in order, radially from the centre counterclockwise ({rules} rules apply).\n\n"
         ms += self.make_matrix()
         msg = await ctx.message.channel.send(ms)
         chan = ctx.message.channel
@@ -138,8 +139,9 @@ class SnekGame(commands.Cog):
                 out.append(st)
                 self.bot.buxman.adjust_bux(u.id, amount)  # always win more than you bet
             else:
-                out.append(f"{u.mention} lost {amount + cost} snekbux on this game! Too bad!")
-                self.bot.buxman.adjust_bux(u.id, -(amount+cost))
+                amount2 = amount//2
+                out.append(f"{u.mention} lost {amount2 + cost} snekbux on this game! Too bad!")
+                self.bot.buxman.adjust_bux(u.id, -(amount2+cost))
 
         await chan.send("\n".join(out))
 
