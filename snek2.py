@@ -15,6 +15,7 @@ import os
 
 prefixes = ["?", "Snek ", "snek ", "SNEK "]   # note trailing space in name prefix
 settings = {}  # overwritten by loading functions below
+updating = False  # global variable to determine whether snek is being restarted to update
 
 if len(argv) > 1 and argv[1] == "-t":
     with open("settings_testing.json", "rb") as f:
@@ -104,16 +105,18 @@ async def reload(ctx, extension):
 @commands.check(is_owner)
 async def update(ctx):
 
+    global updating
+    updating = True
     try:
         await ctx.message.channel.send("Updating from git and restarting")
         await bot.logout()
-        os.execl("sh restart.sh")
     except Exception as e:
         await ctx.message.channel.send(str(e))
 
 
 @bot.event
 async def on_ready():
+
     print("Logged in as {0.user}".format(bot))
     # load default cogs
     for cog in ["plant", "gelbooru", "peros", "niko", "remind", "daily"]:
@@ -298,3 +301,6 @@ async def on_message(message):
 
 print(discord.__version__)
 bot.run(bot.settings["client_secret"])
+
+if updating:  # this code runs when the bot loop exits
+    os.execl("sh restart.sh")  # git pull and restart self
