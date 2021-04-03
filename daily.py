@@ -35,6 +35,7 @@ class Daily(commands.Cog):
 
         now = datetime.datetime.now()
         tim = self.bot.buxman.daily_time(uid)
+        strk = self.bot.buxman.get_streak(uid)
         if not tim:
             return 2, ""  # Null value in db because first time ever the user has done this
 
@@ -43,12 +44,12 @@ class Daily(commands.Cog):
         if delta > datetime.timedelta(days=2):
             # waited too long
             d = delta.days
-            return 0, f"It is {d} days since you last checked your daily, your streak has been reset."
+            return 0, f"It is {d} days since you last checked your daily, your {strk}-day streak has been reset!"
         else:
             if now.day == then.day:
                 # too soon, on the same day
                 t = self.until_midnight()
-                return 1, f"You are too early by {t}! Your streak has been reset!"
+                return 1, f"You are too early by {t}! Your {strk}-day streak has been reset!"
             else:
                 return 2, ""  # the day has advanced since last time but the delta is 1 to 2 days
 
