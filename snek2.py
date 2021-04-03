@@ -11,6 +11,7 @@ from user_stats import Manager
 import clean_text as ct
 import pronouns
 from cleverwrap import CleverWrap
+import os
 
 prefixes = ["?", "Snek ", "snek ", "SNEK "]   # note trailing space in name prefix
 settings = {}  # overwritten by loading functions below
@@ -99,6 +100,18 @@ async def reload(ctx, extension):
         await ctx.message.channel.send(str(e))
 
 
+@bot.command()
+@commands.check(is_owner)
+async def update(ctx):
+
+    try:
+        await ctx.message.channel.send("Updating from git and restarting")
+        await bot.logout()
+        os.execl("sh restart.sh")
+    except Exception as e:
+        await ctx.message.channel.send(str(e))
+
+
 @bot.event
 async def on_ready():
     print("Logged in as {0.user}".format(bot))
@@ -120,6 +133,8 @@ async def logout(ctx):
 
     else:
         await ctx.message.channel.send("No, YOU logout.")
+
+
 
 
 @bot.command()
