@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 import json
 import random
-from sys import argv
+import sys
 import datetime
 import slot_machine
 from iskill import is_kill
@@ -17,7 +17,7 @@ prefixes = ["?", "Snek ", "snek ", "SNEK "]   # note trailing space in name pref
 settings = {}  # overwritten by loading functions below
 updating = False  # global variable to determine whether snek is being restarted to update
 
-if len(argv) > 1 and argv[1] == "-t":
+if len(sys.argv) > 1 and sys.argv[1] == "-t":
     with open("settings_testing.json", "rb") as f:
         settings = json.load(f)
     bot = commands.Bot(command_prefix=["!"])  # testing bot only responds to !-prefixed cmds
@@ -303,4 +303,5 @@ print(discord.__version__)
 bot.run(bot.settings["client_secret"])
 
 if updating:  # this code runs when the bot loop exits
-    os.execl("sh restart.sh")  # git pull and restart self
+    os.execl(sys.executable, "python3.6", __file__)
+
