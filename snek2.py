@@ -123,6 +123,11 @@ async def on_ready():
         bot.load_extension(cog)
     print("loaded default cogs")
 
+@bot.command()
+async def test_cmd(ctx):
+
+    await ctx.message.channel.send("Test function")
+
 
 @bot.command()
 async def logout(ctx):
