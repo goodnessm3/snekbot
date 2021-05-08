@@ -45,7 +45,7 @@ def is_owner(ctx):
     return ctx.message.author.id == bot.settings["owner_id"]
 
 
-async def on_yeet(msg):
+async def on_yeet(msg, _):
 
     b = bot.buxman.get_bux(msg.author.id)
     if b > 10:
@@ -55,7 +55,7 @@ async def on_yeet(msg):
         await msg.channel.send('''lmao, "yeet" XDDDD''')
 
 
-async def on_bane(msg):
+async def on_bane(msg, _):
 
     await msg.channel.send("for you.")
 
@@ -265,7 +265,7 @@ async def xmas(ctx):
     await ctx.message.channel.send("{} days until Christmas!".format(delta.days))
 
 
-bot.regexes = {re.compile('''a big [^\?^\s]+\Z'''): on_bane,
+bot.regexes = {re.compile('''a big [^\s]+\Z'''): on_bane,
                re.compile('''((?!is kill).*) is kill\.*\Z'''): on_kill,
                re.compile('''yeet'''): on_yeet
                }
