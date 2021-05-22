@@ -262,5 +262,30 @@ class Manager:
         self.cursor.execute('''UPDATE stats SET last_time = ? WHERE uid = ?''', (tm, uid))
         self.db.commit()
 
+    def increment_post_pero(self, post_id, channel_id, increment):
 
+        """This code also uses the following trigger in the db
 
+        CREATE TRIGGER update_pero_date UPDATE OF count ON most_peroed
+        BEGIN
+        UPDATE most_peroed SET last_updated = CURRENT_TIMESTAMP WHERE postid = NEW.postid;
+        END;
+
+        """
+
+        self.cursor.execute('''INSERT OR IGNORE INTO most_peroed (postid, channel, count)
+                               VALUES (?, ?, ?)''', (post_id, channel_id, 0))
+        # always try to create a new entry but silently ignore it if there's a conflict with pre-existing
+        self.cursor.execute('''UPDATE most_peroed 
+                               SET count = count + ? WHERE postid = ?''', (increment, post_id))
+        # now we have definitely made the entry there is always something to update
+        self.db.commit()
+
+    def get_most_peroed(self):
+
+        """Returns the post id of the most peroed post."""
+
+        self.cursor.execute('''SELECT postid, channel, count from most_peroed 
+                                WHERE count = (SELECT MAX(count) from most_peroed)
+                                ORDER BY RANDOM()''')
+        return self.cursor.fetchone()

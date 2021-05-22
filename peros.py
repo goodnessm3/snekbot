@@ -383,6 +383,7 @@ class Peros(commands.Cog):
 		# Check that it is poipero
 		if payload.emoji.name.lower() == "poipero":
 			self.buxman.adjust_peros(uid, chid, amount)
+			self.buxman.increment_post_pero(payload.message_id, payload.channel_id, amount)
 
 	@commands.Cog.listener()
 	async def on_raw_reaction_add(self, payload):

@@ -119,7 +119,7 @@ async def on_ready():
 
     print("Logged in as {0.user}".format(bot))
     # load default cogs
-    for cog in ["plant", "gelbooru", "peros", "niko", "remind", "daily"]:
+    for cog in ["plant", "gelbooru", "peros", "niko", "remind", "daily", "most_peroed", "game"]:
         bot.load_extension(cog)
     print("loaded default cogs")
 
