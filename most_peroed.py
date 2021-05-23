@@ -14,7 +14,9 @@ class Mpero(commands.Cog):
         chan = self.bot.get_channel(ch)
         msg = await chan.fetch_message(msgid)
         time, _ = str(msg.created_at).split(" ")
-        await ctx.message.channel.send(f'{count} peros on {time}')
+        author = msg.author.display_name
+        cname = msg.channel.name
+        await ctx.message.channel.send(f'{count} peros on {time} by {author} in \#{cname}:')
         await ctx.message.channel.send(msg.content)
         if msg.attachments:
             await ctx.message.channel.send(msg.attachments[0].url)
