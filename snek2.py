@@ -106,16 +106,10 @@ async def reload(ctx, extension):
 @commands.check(is_owner)
 async def pull(ctx):
 
-    pipe = subprocess.Popen("git pull", stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=10**8)
-
-    try:
-        info2, error2 = pipe.communicate(timeout=15)
-        info = info2.decode("utf-8")
-        error = error2.decode("utf-8")
-        await ctx.message.channel.send(info + "\n" + error)
-    except subprocess.TimeoutExpired:
-        pipe.kill()
-        await ctx.message.channel.send("Git command timed out")
+    res = subprocess.run(["git", "pull"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=10**8)
+    info = res.stdout.decode("utf-8")
+    error = res.stderr.decode("utf-8")
+    await ctx.message.channel.send(info + "\n" + error)
 
 
 @bot.command()
