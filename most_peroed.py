@@ -10,9 +10,16 @@ class Mpero(commands.Cog):
     @commands.command()
     async def most_peroed(self, ctx):
 
-        msgid, ch, count = self.bot.buxman.get_most_peroed()
-        chan = self.bot.get_channel(ch)
-        msg = await chan.fetch_message(msgid)
+        content = None
+        while not content:
+            msgid, ch, count = self.bot.buxman.get_most_peroed()
+            chan = self.bot.get_channel(ch)
+            msg = await chan.fetch_message(msgid)
+            content = msg.content
+            if not content:
+                self.bot.buxman.remove_pero_post(msgid)
+                # cleans up entries where a post was deleted
+
         time, _ = str(msg.created_at).split(" ")
         author = msg.author.display_name
         cname = msg.channel.name

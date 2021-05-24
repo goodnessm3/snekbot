@@ -289,3 +289,10 @@ class Manager:
                                 WHERE count = (SELECT MAX(count) from most_peroed)
                                 ORDER BY RANDOM()''')
         return self.cursor.fetchone()
+
+    def remove_pero_post(self, postid):
+
+        """For removing a post entry"""
+
+        self.cursor.execute('''DELETE from most_peroed WHERE postid = ?''', (postid,))
+        self.db.commit()

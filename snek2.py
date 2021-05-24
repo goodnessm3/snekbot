@@ -12,6 +12,7 @@ import clean_text as ct
 import pronouns
 from cleverwrap import CleverWrap
 import os
+import subprocess
 
 prefixes = ["?", "Snek ", "snek ", "SNEK "]   # note trailing space in name prefix
 settings = {}  # overwritten by loading functions below
@@ -103,12 +104,28 @@ async def reload(ctx, extension):
 
 @bot.command()
 @commands.check(is_owner)
+async def pull(ctx):
+
+    pipe = subprocess.Popen("git pull", stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=10**8)
+
+    try:
+        info2, error2 = pipe.communicate(timeout=15)
+        info = info2.decode("utf-8")
+        error = error2.decode("utf-8")
+        await ctx.message.channel.send(info + "\n" + error)
+    except subprocess.TimeoutExpired:
+        pipe.kill()
+        await ctx.message.channel.send("Git command timed out")
+
+
+@bot.command()
+@commands.check(is_owner)
 async def update(ctx):
 
     global updating
     updating = True
     try:
-        await ctx.message.channel.send("Updating from git and restarting")
+        await ctx.message.channel.send("Restarting...")
         await bot.logout()
     except Exception as e:
         await ctx.message.channel.send(str(e))
@@ -141,8 +158,6 @@ async def logout(ctx):
 
     else:
         await ctx.message.channel.send("No, YOU logout.")
-
-
 
 
 @bot.command()
