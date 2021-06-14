@@ -16,11 +16,12 @@ class Gelbooru(commands.Cog):
 
         self.bot = bot
         #self.sesh = bot.sesh  # aiohttp session for web responses
-        self.url = "https://gelbooru.com/index.php?page=dapi&s=post&q=index&tags=rating:safe+{}"
+        self.url = "https://gelbooru.com/index.php?page=dapi&s=post&q=index&pid={}&tags=rating:safe+{}"
         self.seen = []
         self.last_tags = {}  # the last tags someone asked for, use for repeat searches
         self.cached_xml = None  # for "again" queries, don't need to ask the server again as we already have 100 results
         self.last_search = {}  # the tags of the last image uploaded, a string per channel {channel id:str}
+        self.last_count = 0  # once we know how many pages were returned, we can look in other pages for "again" search
         self.last_scored = defaultdict(lambda: None)  # stop multiple valuations of the same image, per channel
         self.fallback_tags = ["large_breasts", "huge_breasts", "wide_hips"]
         self.dbman = bot.buxman  # interface to the SQL database
@@ -137,10 +138,11 @@ class Gelbooru(commands.Cog):
         except:
             pass
 
-    async def get_image(self, *args):
+    async def get_image(self, *args, **kwargs):
 
-        xml = await self.myget(*args)
+        xml = await self.myget(*args, **kwargs)
         counts, url, tags = await self.get_result(xml)
+        self.last_count = counts  # remember how many images for page offset with "again" command
         if type(counts) == str:
             return '''0 results.'''.format(counts), ""
         else:
@@ -164,17 +166,21 @@ class Gelbooru(commands.Cog):
             #  to a list before storing it
             self.last_tags[cid] = self.last_tags[cid] + new_tags  # append extra tags for further "again" searches
 
-        res, tags = await self.get_image(*self.last_tags[cid])
+        max_page = self.last_count//100
+        ceiling = min(100, max_page)
+        offset = random.randint(0, ceiling)  # gelbooru won't let you ask for a page more than 200 deep
+
+        res, tags = await self.get_image(*self.last_tags[cid], offset=offset)
         self.last_search[cid] = tags
         await ctx.message.channel.send(res)
         self.dbman.log_search(ctx.message.author.id, self.last_tags[cid])
 
-    async def myget(self, *args, limit=False):
+    async def myget(self, *args, limit=False, offset=0):
 
         tags = [x.replace("&", "%26") for x in args]  
         # TODO: actually use a nice url escaping function that handles all special characters not just &
 
-        url = self.url.format("+".join(tags))
+        url = self.url.format(str(offset), "+".join(tags))
         if limit:
             url += "&limit=1"
         async with aiohttp.ClientSession(loop=self.bot.loop) as s:
