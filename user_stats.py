@@ -104,6 +104,7 @@ class Manager:
         """Delete reminders that are in the past from the db, to be run on bot startup"""
 
         self.cursor.execute('''delete from reminders where timestamp < datetime("now") or timestamp is null''')
+        self.cursor.execute('''delete from reminders where timestamp > datetime("now", "100 years")''')
         # also catch null timestamp for when the command was entered wrong
         self.db.commit()
 
@@ -111,7 +112,9 @@ class Manager:
 
         """return a list of tuples of all reminders whose time is greater than now (seconds since epoch)"""
 
-        self.cursor.execute('''select * from reminders where timestamp > datetime("now")''')
+        self.cursor.execute('''select * from reminders 
+        where timestamp > datetime("now")
+        and timestamp < datetime("now","3 seconds")''')
         return self.cursor.fetchall()
 
     def insert_monitored(self, tag, channel, last=None):
