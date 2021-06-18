@@ -13,6 +13,7 @@ import pronouns
 from cleverwrap import CleverWrap
 import os
 import subprocess
+import nick
 
 prefixes = ["?", "Snek ", "snek ", "SNEK "]   # note trailing space in name prefix
 settings = {}  # overwritten by loading functions below
@@ -44,6 +45,23 @@ with open("snektext.json", "r") as f:
 
 def is_owner(ctx):
     return ctx.message.author.id == bot.settings["owner_id"]
+
+
+class NickFind():
+
+    """This needs to appear like a compiled regex object with a findall method"""
+
+    @staticmethod
+    def findall(astr):
+
+        if "give" in astr or (" I " in astr and (" need " in astr
+        or " want " in astr or " have " in astr)) and "nickname" in astr:
+            # I'm not pro enough to work out the regex for this
+            if random.randint(0,100) > 1:
+                return nick.get_nick()
+            else:
+                return None
+        return None
 
 
 async def on_yeet(msg, _):
@@ -276,7 +294,7 @@ async def xmas(ctx):
 
 bot.regexes = {re.compile('''a big [^\s]+\Z'''): on_bane,
                re.compile('''((?!is kill).*) is kill\.*\Z'''): on_kill,
-               re.compile('''yeet'''): on_yeet
+               re.compile('''yeet'''): on_yeet,
                }
 
 
@@ -289,6 +307,11 @@ async def on_message(message):
     if message.channel.id in bot.cbchannels:
         if ctx.command is None and message.content.startswith(tuple(prefixes)):
             # the message is addressed to snek but doesn't contain a command, send the text to cleverbot for a response
+            q = NickFind.findall(message.content)
+            print(q)
+            if q:
+                await message.channel.send(q)
+                return
             now = datetime.datetime.now()
             if (now - bot.last_chat).seconds > 500:
                 cb.reset()  # don't resume an old conversation, start a new one
