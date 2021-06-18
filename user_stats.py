@@ -114,7 +114,7 @@ class Manager:
 
         self.cursor.execute('''select * from reminders 
         where timestamp > datetime("now")
-        and timestamp < datetime("now","1 hour")''')
+        and timestamp < datetime("now","1 hours")''')
         return self.cursor.fetchall()
 
     def insert_monitored(self, tag, channel, last=None):
@@ -299,3 +299,10 @@ class Manager:
 
         self.cursor.execute('''DELETE from most_peroed WHERE postid = ?''', (postid,))
         self.db.commit()
+
+    def now(self):
+
+        """Returns the time now according to the SQL DB"""
+
+        self.cursor.execute('''SELECT datetime("now")''')
+        return self.cursor.fetchone()

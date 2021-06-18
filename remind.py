@@ -34,12 +34,12 @@ class Reminder(commands.Cog):
             h, mi, s = timestamp[11:].split(":")
             future_time = datetime.datetime(int(y), int(m), int(d), int(h), int(mi), int(s))
             # works on earlier python versions
-            delay = future_time - datetime.datetime.now()
-
-            print("delay is")
-            print(delay.total_seconds())
+            now_stamp = self.bot.buxman.now()[0]
+            y, m, d = now_stamp[:10].split("-")
+            h, mi, s = now_stamp[11:].split(":")
+            timenow = datetime.datetime(int(y), int(m), int(d), int(h), int(mi), int(s))
+            delay = future_time - timenow
             self.bot.loop.call_later(int(delay.total_seconds()), lambda: asyncio.ensure_future(chan.send(message)))
-
             print("Added reminder to loop: {} at {}".format(message, timestamp))
 
         self.bot.loop.call_later(3600, lambda: asyncio.ensure_future(self.queue_reminders()))
@@ -49,7 +49,9 @@ class Reminder(commands.Cog):
     @commands.command()
     async def remindme(self, ctx, *astr):
 
-        """set a reminder after a certain time e.g. !remindme 10 minutes asdf"""
+        """set a reminder after a certain time e.g. !remindme 10 minutes asdf
+        or at a specific time !remindme 2030 smoke a blunt
+        or at a date and time !remindme 07-22 1620 take a fat bong rip"""
 
         in_string = " ".join(astr)  # make the arguments a string and then fish out the time with regex
         dat = self.date_finder.search(in_string)
@@ -75,10 +77,14 @@ class Reminder(commands.Cog):
         to_send = "{}, reminder: {}".format(ctx.message.author.mention, extracted)
         print_delay = datetime.timedelta(seconds=delay)
         await ctx.message.channel.send("OK! I'll remind you in {}.".format(print_delay))
-        self.bot.loop.call_later(delay, lambda: asyncio.ensure_future(ctx.message.channel.send(to_send)))
 
-        self.bot.buxman.add_reminder(ctx.message.author.id, to_send, ctx.message.channel.id, delay)
-        # write the reminder to the SQL db in case the bot is restarted before the reminder is sent
+        if delay < 3600:
+            self.bot.loop.call_later(delay, lambda: asyncio.ensure_future(ctx.message.channel.send(to_send)))
+            # it's due maybe before the next db check runs, just schedule it directly and don't put in db
+        else:
+            self.bot.buxman.add_reminder(ctx.message.author.id, to_send, ctx.message.channel.id, delay)
+            # put it in the database and it will be picked up by the hourly check
+
 
     def find_time(self, astr):
 
