@@ -57,7 +57,7 @@ class NickFind():
         if "give" in astr or (" I " in astr and (" need " in astr
         or " want " in astr or " have " in astr)) and "nickname" in astr:
             # I'm not pro enough to work out the regex for this
-            if random.randint(0,100) > 1:
+            if random.randint(0,33) > 1:
                 return nick.get_nick()
             else:
                 return None
