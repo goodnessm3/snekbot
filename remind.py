@@ -42,7 +42,7 @@ class Reminder(commands.Cog):
 
             print("Added reminder to loop: {} at {}".format(message, timestamp))
 
-        self.bot.loop.call_later(3, lambda: asyncio.ensure_future(self.queue_reminders()))
+        self.bot.loop.call_later(3600, lambda: asyncio.ensure_future(self.queue_reminders()))
         # re-schedule call to this function later
         self.bot.buxman.prune_reminders()  # throw out old reminders or reminders more than 100 years in the future
 

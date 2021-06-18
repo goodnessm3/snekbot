@@ -114,7 +114,7 @@ class Manager:
 
         self.cursor.execute('''select * from reminders 
         where timestamp > datetime("now")
-        and timestamp < datetime("now","3 seconds")''')
+        and timestamp < datetime("now","1 hour")''')
         return self.cursor.fetchall()
 
     def insert_monitored(self, tag, channel, last=None):
