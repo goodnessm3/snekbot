@@ -2,7 +2,6 @@ from discord.ext import commands
 import re
 import asyncio
 import datetime
-import time
 
 
 class Reminder(commands.Cog):
@@ -17,6 +16,11 @@ class Reminder(commands.Cog):
         self.bot = bot
         self.bot.loop.create_task(self.queue_reminders())
 
+    async def enqueue_reminder(self, chan, d, r):
+
+        self.bot.loop.call_later(d, lambda: asyncio.ensure_future(chan.send(r)))
+        print(f"enqueued {r} after {d} s")
+
     async def queue_reminders(self):
 
         """Runs every hour and schedules reminders to be run if they are due within the next hour"""
@@ -29,7 +33,7 @@ class Reminder(commands.Cog):
             if not chan:  # bot couldn't resolve channel ID, maybe we are in testing mode or lost access to channel
                 print(f"Couldn't set reminder {message} in channel {channel_id}")
                 continue
-            # future_time = datetime.datetime.fromisoformat(timestamp) not for 3.7
+            # future_time = datetime.datetime.fromisoformat(timestamp) # not for 3.7
             y, m, d = timestamp[:10].split("-")
             h, mi, s = timestamp[11:].split(":")
             future_time = datetime.datetime(int(y), int(m), int(d), int(h), int(mi), int(s))
@@ -39,8 +43,14 @@ class Reminder(commands.Cog):
             h, mi, s = now_stamp[11:].split(":")
             timenow = datetime.datetime(int(y), int(m), int(d), int(h), int(mi), int(s))
             delay = future_time - timenow
-            self.bot.loop.call_later(int(delay.total_seconds()), lambda: asyncio.ensure_future(chan.send(message)))
-            print("Added reminder to loop: {} at {}".format(message, timestamp))
+            # self.bot.loop.call_later(int(delay.total_seconds()), lambda: asyncio.ensure_future(chan.send(message)))
+            # ^ old method that didn't work, see below
+            await self.enqueue_reminder(chan, int(delay.total_seconds()), message)
+            # for some reason, adding to the loop needs to be farmed out to another async function. If I try to
+            # add all the reminders to the loop here, they all send the same message, presumably because they
+            # are all referencing the same instance of "message" variable. Look into this more.
+
+            # print("Added reminder to loop: {} at {}".format(message, timestamp))
 
         self.bot.loop.call_later(3600, lambda: asyncio.ensure_future(self.queue_reminders()))
         # re-schedule call to this function later
@@ -84,7 +94,6 @@ class Reminder(commands.Cog):
         else:
             self.bot.buxman.add_reminder(ctx.message.author.id, to_send, ctx.message.channel.id, delay)
             # put it in the database and it will be picked up by the hourly check
-
 
     def find_time(self, astr):
 
