@@ -30,6 +30,8 @@ class Daily(commands.Cog):
         amount = 180 + 20 * strk
         await ctx.message.channel.send(f"You got {amount} snekbux. You are on a {strk}-day streak!")
         self.bot.buxman.adjust_bux(uid, amount)
+        if strk == 69:
+            await ctx.message.channel.send("Nice!")
 
     def time_check(self, uid):
 
