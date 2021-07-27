@@ -47,7 +47,7 @@ class Gelbooru(commands.Cog):
             await ctx.message.channel.send("I am not connected to any server!")
 
     @commands.command()
-    @commands.cooldown(1, 120, type=commands.BucketType.user)
+    # @commands.cooldown(1, 120, type=commands.BucketType.user)
     async def value(self, ctx):
         """value the last gelbooru image searched
 
