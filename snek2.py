@@ -269,11 +269,25 @@ async def slots(ctx, *args):
     emojis = [chr(int(x, 16)) for x in symbols]
     out = '''Gambling {} snekbux...\n{}{}{}\n'''.format(amount, *emojis)
     if payout < 0:
-        out += "You lost... you now have {} snekbux.".format(bux + payout)
+        out += "You lost..."
     else:
-        out += "You won {} snekbux! You now have {} snekbux.".format(payout + amount, bux + payout)
+        out += "You won {} snekbux!".format(payout + amount)
 
-    bot.buxman.adjust_bux(uid, payout)
+    tax = 0
+    if (bux + payout) % 100 == 0 and not (bux + payout) == 0:
+        # forbid people obtaining a nice round number of snekbux
+        tax = random.randint(-50,-1)
+        while tax % 10 == 0:
+            tax = random.randint(-50,-1)
+        taxes = ["snek maintenance", "snek developer", "anime girl", "sissy boy", "big chungus", "internet",
+                 "snek slots", "C# rewrite fund", "solo sideboob",
+                 "watermelon solo swimsuit", "gelbooru"]
+        reason = random.choice(taxes)
+        out += f" and unfortunately, {abs(tax)} snekbux must be deducted for {reason} tax."
+
+    out += f" You now have {bux + payout + tax} snekbux."
+
+    bot.buxman.adjust_bux(uid, payout + tax)
 
     await ctx.message.channel.send(out)
 
