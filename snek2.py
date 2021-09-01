@@ -54,10 +54,25 @@ class NickFind():
     @staticmethod
     def findall(astr):
 
+        admonitions = ["How about you stop changing your name?",
+                       "You don't have to change your name all the time, you know.",
+                       "Instead of changing your name, just b urself!",
+                       "Maybe you should pick one name and stick with it, doofus.",
+                       "I've run out of nicknames.",
+                       "Why don't you just pick one name and stick with it?",
+                       "How about you stop confusing people by changing your name every day?",
+                       "You know what would be really cool? Choosing one name and sticking with it!",
+                       "I don't have time for this nonsense any more.",
+                       "Just b urself my man.",
+                       "Go ask your mother."]
+
         if "give" in astr and "me" in astr and "nickname" in astr:
             # I'm not pro enough to work out the regex for this
-            if random.randint(0,33) > 1:
+            chance = random.randint(0, 10)
+            if chance > 4:
                 return nick.get_nick()
+            elif chance > 2:
+                return random.choice(admonitions)
             else:
                 return None
         return None
