@@ -274,7 +274,7 @@ async def slots(ctx, *args):
         out += "You won {} snekbux!".format(payout + amount)
 
     tax = 0
-    if (bux + payout) % 100 == 0 and not (bux + payout) == 0:
+    if (bux + payout) % 100 == 0 and not (bux + payout) == 0 and random.randint(0, 4) == 2:
         # forbid people obtaining a nice round number of snekbux
         tax = random.randint(-50,-1)
         while tax % 10 == 0:
