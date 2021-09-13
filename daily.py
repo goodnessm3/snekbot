@@ -7,6 +7,7 @@ class Daily(commands.Cog):
     def __init__(self, bot):
 
         self.bot = bot
+        self.temp = []  # to deal with server going down, a more long term solution is needed
 
     @commands.command()
     async def daily(self, ctx):
@@ -34,6 +35,10 @@ class Daily(commands.Cog):
             await ctx.message.channel.send("Nice!")
 
     def time_check(self, uid):
+
+        if uid not in self.temp:
+            self.temp.append(uid)
+            return 2, ""  # free pass first time regardless of time interval, a temporary fix
 
         now = datetime.datetime.now()
         tim = self.bot.buxman.daily_time(uid)
