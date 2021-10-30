@@ -68,14 +68,15 @@ class NickFind():
 
         if "give" in astr and "me" in astr and "nickname" in astr:
             # I'm not pro enough to work out the regex for this
-            chance = random.randint(0, 10)
-            if chance > 4:
-                return nick.get_nick()
-            elif chance > 2:
-                return random.choice(admonitions)
-            else:
-                return None
-        return None
+            # chance = random.randint(0, 10)
+            # if chance > 4:
+                # return nick.get_nick()
+            # elif chance > 2:
+            return random.choice(admonitions)
+            # else:
+                # return None
+        else:
+            return None
 
 
 async def on_yeet(msg, _):
