@@ -8,7 +8,7 @@ from collections import defaultdict
 import clean_text as ct
 from Tree_Server import Tree_Server
 import aiohttp
-from itertools import combinations
+
 
 class Gelbooru(commands.Cog):
 
@@ -105,37 +105,11 @@ class Gelbooru(commands.Cog):
         tags = tag_list.split(" ")
         await self.serv.add_tag(tags)
 
-    async def get_random_triplet(self):
-
-        ts = []
-        while len(ts) < 2:
-            await asyncio.sleep(3)
-            ts.append(await self.serv.get_random_tag())
-        count = 0
-        tags = ""
-        while tags == "":
-            await asyncio.sleep(3)
-            print("iter")
-            new = await self.serv.get_random_tag()  # try again when not rate limited
-            ts.append(new)
-            opts = combinations(ts, 3)
-            for x in opts:
-                await asyncio.sleep(3)
-                count += 1
-                print("before")
-                res, tags = await self.get_image(x)
-                print("after")
-                if not tags == "":
-                    break
-
-        return tags, count
-
     @commands.command()
     async def gelbooru(self, ctx, *args):
 
         """look up a picture on gelbooru"""
 
-        print(args[0])
         if len(args) == 0 or args[0] == "random":
             tagpool = self.last_search.get(ctx.message.channel.id, None)
             if not tagpool:
@@ -151,13 +125,6 @@ class Gelbooru(commands.Cog):
             out = ct.discordStringEscape(out)
             await ctx.message.channel.send(out)
             args = candidates
-            self.dbman.log_search(ctx.message.author.id, ["random"])
-        elif args[0] == "randoms":
-            p, q = await self.get_random_triplet()
-            out = "I searched for: {} after {} iterations".format(", ".join(p), q)
-            out = ct.discordStringEscape(out)
-            await ctx.message.channel.send(out)
-            args = p
             self.dbman.log_search(ctx.message.author.id, ["random"])
         else:
             self.dbman.log_search(ctx.message.author.id, args)
