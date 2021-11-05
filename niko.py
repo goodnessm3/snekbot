@@ -19,6 +19,46 @@ with open("twitter_keys.json", "r") as f:
         TI.__setattr__(k, v)  # this is needlessly complicated
 
 
+class TwitterCheck:
+
+    """Object for a vtuber twitter user. The consoom_tweets function will go through all recent tweets until
+    it sees the newest tweet the last time it checked. If a tweet mentioning 'schedule' is found,
+    consoom_tweets returns the URL of that tweet."""
+
+    def __init__(self, user, myclient):
+
+        new = myclient.user_timeline(user, count=1)
+        self.last = new[0].id
+        self.user = user
+        self.myclient = myclient
+
+    def consoom_tweets(self):
+
+        print(f"Checking for a schedule from {self.user}")
+        tweets = self.myclient.user_timeline(self.user, count=10)
+        # get 10 at a time and stop when we find the most recent one from last time we looked
+        current_id = None
+        index = 0
+        total = 0
+        found = False
+        while not current_id == self.last:
+            total += 1
+            tw = tweets[index]
+            if "schedule" in tw.text.lower():
+                found = True
+                break
+            current_id = tw.id
+            index += 1
+            if index > 9:
+                index = 0
+                tweets = self.myclient.user_timeline(self.user, count=10, max_id=current_id)
+            if total > 100:
+                break  # safeguard, something has gone wrong
+        self.last = current_id
+        if found:
+            return f"https://twitter.com/{self.user}/status/{str(tweets[index].id)}"
+
+
 class TwitterListener(commands.Cog):
 
     def __init__(self, bot):
@@ -29,6 +69,9 @@ class TwitterListener(commands.Cog):
         self.client = tweepy.API(auth)
         self.channel_list = []
         self.latest_tweet = None
+        self.chuubas = []
+        with open("vtubechannel.txt", "r") as f:
+            self.vtube_channel = self.bot.get_channel(int(f.read().rstrip("\n")))
         try:
             with open("twitter_channels.txt", "r") as f:
                 for line in f.readlines():
@@ -38,8 +81,15 @@ class TwitterListener(commands.Cog):
         except FileNotFoundError:
             pass
 
+        with open("vtubers.txt", "r") as f:
+            for line in f.readlines():
+                self.chuubas.append(TwitterCheck(line.rstrip("\n"), self.client))
+                # set up objects to monitor each vtuber twitter account
+
         self.bot.loop.call_later(10, lambda: asyncio.ensure_future(self.get_tweet()))
         # wait 10 seconds until bot is logged in
+
+        self.bot.loop.call_later(5, lambda: asyncio.ensure_future(self.monitor_chuubas()))
 
     async def get_tweet(self):
 
@@ -54,6 +104,15 @@ class TwitterListener(commands.Cog):
 
         self.bot.loop.call_later(300, lambda: asyncio.ensure_future(self.get_tweet()))
         # schedule to check again in 5 mins
+
+    async def monitor_chuubas(self):
+
+        for q in self.chuubas:
+            tw = q.consoom_tweets()
+            if tw:
+                await self.vtube_channel.send(tw)
+            await asyncio.sleep(100)  # space out the checking
+
 
     @commands.command()
     async def add_this(self, ctx):
