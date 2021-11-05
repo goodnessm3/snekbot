@@ -111,7 +111,10 @@ class TwitterListener(commands.Cog):
             tw = q.consoom_tweets()
             if tw:
                 await self.vtube_channel.send(tw)
-            await asyncio.sleep(100)  # space out the checking
+            await asyncio.sleep(500)  # space out the checking
+
+        print("checked all vtube schedules, next check in 2 hours")
+        self.bot.loop.call_later(7200, lambda: asyncio.ensure_future(self.monitor_chuubas()))
 
 
     @commands.command()
