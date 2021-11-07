@@ -27,7 +27,7 @@ class TwitterCheck:
 
     def __init__(self, user, myclient):
 
-        new = myclient.user_timeline(user, count=1)
+        new = myclient.user_timeline(screen_name=user, count=1)
         self.last = new[0].id
         self.user = user
         self.myclient = myclient
@@ -35,7 +35,7 @@ class TwitterCheck:
     def consoom_tweets(self):
 
         print(f"Checking for a schedule from {self.user}")
-        tweets = self.myclient.user_timeline(self.user, count=10)
+        tweets = self.myclient.user_timeline(screen_name=self.user, count=10)
         # get 10 at a time and stop when we find the most recent one from last time we looked
         current_id = None
         index = 0
@@ -51,7 +51,7 @@ class TwitterCheck:
             index += 1
             if index > 9:
                 index = 0
-                tweets = self.myclient.user_timeline(self.user, count=10, max_id=current_id)
+                tweets = self.myclient.user_timeline(screen_name=self.user, count=10, max_id=current_id)
             if total > 100:
                 break  # safeguard, something has gone wrong
         self.last = current_id
@@ -96,7 +96,7 @@ class TwitterListener(commands.Cog):
 
     async def get_tweet(self):
 
-        tweet = self.client.user_timeline("3096462845", count=1)[0]
+        tweet = self.client.user_timeline(user_id="3096462845", count=1)[0]
 
         if tweet.in_reply_to_status_id is None and tweet.id != self.latest_tweet:
             for q in self.channel_list:
@@ -129,7 +129,7 @@ class TwitterListener(commands.Cog):
                 f.write(str(ctx.message.channel.id))
                 f.write("\n")
             await ctx.message.channel.send("Added this channel to the list!")
-            tweet = self.client.user_timeline("3096462845", count=1)[0]
+            tweet = self.client.user_timeline(user_id="3096462845", count=1)[0]
             await ctx.message.channel.send(
                 "The latest tweet is: https://twitter.com/" + tweet.user.name + "/status/" + str(tweet.id))
             await ctx.message.channel.send("https://tenor.com/view/niko-gif-18543948")
@@ -139,7 +139,7 @@ class TwitterListener(commands.Cog):
     @commands.command()
     async def niko_moment(self, ctx):
 
-        tweet = self.client.user_timeline("3096462845", count=1)[0]
+        tweet = self.client.user_timeline(user_id="3096462845", count=1)[0]
         await ctx.message.channel.send(
             "The latest niko tweet is: https://twitter.com/" + tweet.user.name + "/status/" + str(tweet.id))
         await ctx.message.channel.send("https://tenor.com/view/niko-gif-18543948")
@@ -148,7 +148,7 @@ class TwitterListener(commands.Cog):
     async def smonitor(self, ctx, chuuba):
 
         try:
-            tweet = self.client.user_timeline(chuuba, count=1)[0]
+            tweet = self.client.user_timeline(screen_name=chuuba, count=1)[0]
         except:
             await ctx.message.channel.send("Doesn't look like that's a valid twitter handle.")
             return
