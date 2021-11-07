@@ -155,7 +155,7 @@ async def update(ctx):
     updating = True
     try:
         await ctx.message.channel.send("Restarting...")
-        await bot.logout()
+        await bot.close()
     except Exception as e:
         await ctx.message.channel.send(str(e))
 
@@ -183,7 +183,7 @@ async def logout(ctx):
     if ctx.message.author.id == bot.settings["owner_id"]:
         print("logging out")
         await ctx.message.channel.send("Bye bye")
-        await bot.logout()
+        await bot.close()
 
     else:
         await ctx.message.channel.send("No, YOU logout.")

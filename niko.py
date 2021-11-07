@@ -70,8 +70,11 @@ class TwitterListener(commands.Cog):
         self.channel_list = []
         self.latest_tweet = None
         self.chuubas = []
+        self.thread = None  # where we post the vtuber schedules
         with open("vtubechannel.txt", "r") as f:
-            self.vtube_channel = self.bot.get_channel(int(f.read().rstrip("\n")))
+            self.thread = self.bot.get_channel(int(f.read().rstrip("\n")))
+        self.bot.loop.call_soon(lambda: asyncio.ensure_future(self.thread.send("I'll post vtuber schedules here.")))
+
         try:
             with open("twitter_channels.txt", "r") as f:
                 for line in f.readlines():
@@ -110,11 +113,11 @@ class TwitterListener(commands.Cog):
         for q in self.chuubas:
             tw = q.consoom_tweets()
             if tw:
-                await self.vtube_channel.send(tw)
+                await self.thread.send(tw)
             await asyncio.sleep(500)  # space out the checking
 
-        print("checked all vtube schedules, next check in 2 hours")
-        self.bot.loop.call_later(7200, lambda: asyncio.ensure_future(self.monitor_chuubas()))
+        print("checked all vtube schedules, re-scheduling check function")
+        self.bot.loop.call_later(500, lambda: asyncio.ensure_future(self.monitor_chuubas()))
 
 
     @commands.command()
@@ -140,6 +143,31 @@ class TwitterListener(commands.Cog):
         await ctx.message.channel.send(
             "The latest niko tweet is: https://twitter.com/" + tweet.user.name + "/status/" + str(tweet.id))
         await ctx.message.channel.send("https://tenor.com/view/niko-gif-18543948")
+
+    @commands.command()
+    async def smonitor(self, ctx, chuuba):
+
+        try:
+            tweet = self.client.user_timeline(chuuba, count=1)[0]
+        except:
+            await ctx.message.channel.send("Doesn't look like that's a valid twitter handle.")
+            return
+
+        with open("vtubers.txt", "a") as f:
+            f.write(chuuba)
+            f.write("\n")
+
+        self.chuubas.append(TwitterCheck(chuuba, self.client))
+        await ctx.message.channel.send(f"I'll monitor for schedules from {chuuba}.")
+
+    @commands.command()
+    async def monitoreds(self, ctx):
+
+        with open("vtubers.txt", "r") as f:
+            ms = f.read()
+        await ctx.message.channel.send("I am currently monitoring:\n" + ms)
+
+
 
 
 def setup(bot):
