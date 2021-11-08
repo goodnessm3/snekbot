@@ -371,5 +371,5 @@ print(discord.__version__)
 bot.run(bot.settings["client_secret"])
 
 if updating:  # this code runs when the bot loop exits
-    os.execl(sys.executable, "python3.6", __file__)
+    os.execl(sys.executable, "python3", __file__)
 

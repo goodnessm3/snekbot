@@ -35,7 +35,7 @@ class TwitterCheck:
     def consoom_tweets(self):
 
         print(f"Checking for a schedule from {self.user}")
-        tweets = self.myclient.user_timeline(screen_name=self.user, count=10)
+        tweets = self.myclient.user_timeline(screen_name=self.user,count=10,exclude_replies=True,)
         # get 10 at a time and stop when we find the most recent one from last time we looked
         current_id = None
         index = 0
@@ -45,8 +45,9 @@ class TwitterCheck:
             total += 1
             tw = tweets[index]
             if "schedule" in tw.text.lower():
-                found = True
-                break
+                if "media" in tw.entities.keys():  # check if the tweet has an image
+                    found = True
+                    break
             current_id = tw.id
             index += 1
             if index > 9:
