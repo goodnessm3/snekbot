@@ -35,29 +35,33 @@ class TwitterCheck:
     def consoom_tweets(self):
 
         print(f"Checking for a schedule from {self.user}")
-        tweets = self.myclient.user_timeline(screen_name=self.user,count=10,exclude_replies=True,)
+        tweets = self.myclient.user_timeline(screen_name=self.user,count=10,exclude_replies=True)
         # get 10 at a time and stop when we find the most recent one from last time we looked
         current_id = None
-        index = 0
+        t = iter(tweets)
         total = 0
         found = False
         while not current_id == self.last:
             total += 1
-            tw = tweets[index]
+            try:
+                tw = next(t)
+            except StopIteration:
+                # time to get a new batch. We can't just count the index because if we ask for 10
+                # but exclude replies, we might actually get less than 10 back
+                tweets = self.myclient.user_timeline(screen_name=self.user, count=10, max_id=current_id)
+                t = iter(tweets)
+                tw = next(t)
             if "schedule" in tw.text.lower():
                 if "media" in tw.entities.keys():  # check if the tweet has an image
                     found = True
                     break
             current_id = tw.id
-            index += 1
-            if index > 9:
-                index = 0
-                tweets = self.myclient.user_timeline(screen_name=self.user, count=10, max_id=current_id)
+
             if total > 100:
                 break  # safeguard, something has gone wrong
         self.last = current_id
         if found:
-            return f"https://twitter.com/{self.user}/status/{str(tweets[index].id)}"
+            return f"https://twitter.com/{self.user}/status/{str(tw.id)}"
 
 
 class TwitterListener(commands.Cog):
