@@ -251,23 +251,21 @@ class Gelbooru(commands.Cog):
         tags = posts[0].get("tags")
         # print("old md5 was {}, new is {}".format(last, most_recent))
         base_time = self.monitoring_times[tag]
-        if most_recent == last:
-            self.monitoring_times[tag] = base_time + 10000  # check less frequently
-        else:
-            print("found a new image for tag {}".format(tag))
-            self.dbman.insert_monitored(tag, channel=cid, last=most_recent)
-            # also update db before splitting the tags in case monitoring for a multi-tag query
-            new_tags = tags.split(" ")
-            all_monitored_tags = [z[0] for z in self.dbman.get_all_monitored()]
-            if "+" not in tag:
-                for q in new_tags:
-                    if q in all_monitored_tags:
-                        print("This image matched a monitored tag: {}".format(q))
-                        self.dbman.insert_monitored(q, channel=cid, last=most_recent)
-            chan = self.bot.get_channel(cid)
-            url = posts[0].get("file_url")
-            self.last_search[cid] = tags
-            await chan.send("I found a new {} image! {}".format(tag, url))
+
+        print("found a new image for tag {}".format(tag))
+        self.dbman.insert_monitored(tag, channel=cid, last=most_recent)
+        # also update db before splitting the tags in case monitoring for a multi-tag query
+        new_tags = tags.split(" ")
+        all_monitored_tags = [z[0] for z in self.dbman.get_all_monitored()]
+        if "+" not in tag:
+            for q in new_tags:
+                if q in all_monitored_tags:
+                    print("This image matched a monitored tag: {}".format(q))
+                    self.dbman.insert_monitored(q, channel=cid, last=most_recent)
+        chan = self.bot.get_channel(cid)
+        url = posts[0].get("file_url")
+        self.last_search[cid] = tags
+        await chan.send("I found a new {} image! {}".format(tag, url))
 
         next_call = max(3600, base_time + random.randint(-6000, 6000))
         # jitter timing to stop all gelbooru requests being simultaneous
