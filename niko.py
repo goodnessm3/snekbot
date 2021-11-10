@@ -37,12 +37,19 @@ class TwitterCheck:
         print(f"Checking for a schedule from {self.user}")
         tweets = self.myclient.user_timeline(screen_name=self.user,count=10,exclude_replies=True)
         # get 10 at a time and stop when we find the most recent one from last time we looked
-        current_id = None
         t = iter(tweets)
+        tw = next(t)
+        current_id = tw.id
         total = 0
         found = False
+
         while not current_id == self.last:
             total += 1
+
+            if "schedule" in tw.text.lower():
+                if "media" in tw.entities.keys():  # check if the tweet has an image
+                    found = True
+                    break
             try:
                 tw = next(t)
             except StopIteration:
@@ -51,14 +58,11 @@ class TwitterCheck:
                 tweets = self.myclient.user_timeline(screen_name=self.user, count=10, max_id=current_id)
                 t = iter(tweets)
                 tw = next(t)
-            if "schedule" in tw.text.lower():
-                if "media" in tw.entities.keys():  # check if the tweet has an image
-                    found = True
-                    break
-            current_id = tw.id
 
+            current_id = tw.id
             if total > 100:
                 break  # safeguard, something has gone wrong
+
         self.last = current_id
         if found:
             return f"https://twitter.com/{self.user}/status/{str(tw.id)}"
