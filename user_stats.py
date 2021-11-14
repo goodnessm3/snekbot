@@ -306,3 +306,12 @@ class Manager:
 
         self.cursor.execute('''SELECT datetime("now")''')
         return self.cursor.fetchone()
+
+    def anticipate_shop_activation(self, uid, rand, uname):
+
+        """Stores a number to expect from a user using the web interface. When this number
+        is received on the web page it is used to associate the cookie ID with the discord ID"""
+
+        self.cursor.execute('''INSERT INTO shop (uid, rand, uname) VALUES (?, ?, ?)''', (uid, rand, uname))
+        # we need to put the user's display name in the table so the web interface knows what to call the user
+        self.db.commit()  # MUST commit change so that it's visible to the web code
