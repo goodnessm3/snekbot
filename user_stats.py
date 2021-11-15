@@ -311,7 +311,12 @@ class Manager:
 
         """Stores a number to expect from a user using the web interface. When this number
         is received on the web page it is used to associate the cookie ID with the discord ID"""
-
-        self.cursor.execute('''INSERT INTO shop (uid, rand, uname) VALUES (?, ?, ?)''', (uid, rand, uname))
+        # TODO: insert or update
+        self.cursor.execute('''UPDATE shop SET (rand, uname, cookie) = (?, ?, NULL) where UID = ?''', (rand, uname, uid))
         # we need to put the user's display name in the table so the web interface knows what to call the user
+        # if the user has no pre-existing entry we need to make one though:
+        self.cursor.execute('''INSERT INTO shop (uid, rand, uname) SELECT ?, ?, ? WHERE (SELECT CHANGES() = 0)''',
+                            (uid, rand, uname))
+
         self.db.commit()  # MUST commit change so that it's visible to the web code
+

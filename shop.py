@@ -18,42 +18,45 @@ class Shop(commands.Cog):
     def __init__(self, bot):
 
         self.bot = bot
-        self.bot.loop.create_task(self.shop_socket())
+        self.bot.loop.create_task(self.shop_monitor())
+        with open("shop_file.txt", "w") as f:
+            pass  # just overwrite the file anew each startup
+        self.shop_file = open("shop_file.txt", "r")  # now keep handle open
 
     @commands.command()
     async def shop(self, ctx):
 
         u = ctx.message.author
-        rand = secrets.token_hex(4)
+        rand = secrets.token_hex(2).upper()
         self.bot.buxman.anticipate_shop_activation(u.id, rand, u.display_name)
-        await u.send(f"Enter this code on the snekbux store web page: {rand}")
+        await u.send(f"Enter this code at {self.bot.settings['shop_address']}: {rand}")
 
-    async def shop_socket(self):
+    async def shop_monitor(self):
 
-        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server.bind(('127.0.0.1', 12434))
-        while True:
-            server.listen(1)
-            client, _ = await self.bot.loop.sock_accept(server)
-            while True:
-                await asyncio.sleep(1)
-                data = await self.bot.loop.sock_recv(client, 4096)  # a GET request from the store web page
-                if data:
-                    await self.bot.loop.sock_sendall(client, bytes("HTTP/2 200 OK", "UTF-8"))
-                    # have to send a 200 OK back, otherwise the browser will keep sending the request
-                    q = (data.decode("UTF-8"))
-                    first = q.split(os.linesep)[0]
-                    if first:
-                        command = (first[4:-9])  # strip off "GET " and " HTTP/1.1"
-                        await self.process_socket(command)
+            line = self.shop_file.readline()  # will just be nothing if at EOF
+            if line.rstrip(os.linesep):
+                await self.process_shop_cmd(line)
+            self.bot.loop.call_later(1, lambda: asyncio.ensure_future(self.shop_monitor()))
 
-                client.close()
-                break
+    async def process_shop_cmd(self, command):
 
-    async def process_socket(self, command):
-
-        parts = command.split("/")  # it's basically in URL format
-        print(parts)
+        # parts are (channel id, message)
+        parts = command.rstrip(os.linesep).split("||")
+        cmd = parts[0]  # a string the identifies what to actually do
+        uid = parts[1]
+        if cmd == "sendmessage":
+              # get the discord ID so we can charge snekbux accordingly
+            self.bot.buxman.adjust_bux(uid, -1000)
+            chan = self.bot.get_channel(int(parts[2]))
+            print(parts[3])
+            if len(parts[3]) > 0:
+                await chan.send(parts[3])
+        elif cmd == "namechange":
+            newname = parts[2]
+            guild_id = self.bot.settings["shop_server"]
+            srv = self.bot.get_guild(guild_id)
+            self.bot.buxman.adjust_bux(uid, -10000)
+            await srv.me.edit(nick=newname)
 
 def setup(bot):
 
