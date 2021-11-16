@@ -30,6 +30,7 @@ class Shop(commands.Cog):
         rand = secrets.token_hex(2).upper()
         self.bot.buxman.anticipate_shop_activation(u.id, rand, u.display_name)
         await u.send(f"Enter this code at {self.bot.settings['shop_address']}: {rand}")
+        await ctx.message.channel.send(f"Spend your snekbux at {self.bot.settings['shop_address']}!")
 
     async def shop_monitor(self):
 
