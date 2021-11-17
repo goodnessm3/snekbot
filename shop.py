@@ -1,16 +1,8 @@
 from discord.ext import commands
 import secrets
-import socket
+import discord
 import os
-import xml.etree.ElementTree as ElementTree
-import random
-from async_timeout import timeout
-import json
 import asyncio
-from collections import defaultdict
-import clean_text as ct
-from Tree_Server import Tree_Server
-import aiohttp
 
 
 class Shop(commands.Cog):
@@ -26,11 +18,17 @@ class Shop(commands.Cog):
     @commands.command()
     async def shop(self, ctx):
 
+        await ctx.message.channel.send(f"Spend your snekbux at {self.bot.settings['shop_address']} !\n"
+                                       f"Type 'snek shop_register' for first time setup.")
+
+    @commands.command()
+    async def shop_register(self, ctx):
+
         u = ctx.message.author
         rand = secrets.token_hex(2).upper()
         self.bot.buxman.anticipate_shop_activation(u.id, rand, u.display_name)
         await u.send(f"Enter this code at {self.bot.settings['shop_address']}: {rand}")
-        await ctx.message.channel.send(f"Spend your snekbux at {self.bot.settings['shop_address']}!")
+        await ctx.message.channel.send(f"Spend your snekbux at {self.bot.settings['shop_address']} !")
 
     async def shop_monitor(self):
 
@@ -58,6 +56,10 @@ class Shop(commands.Cog):
             srv = self.bot.get_guild(guild_id)
             self.bot.buxman.adjust_bux(uid, -10000)
             await srv.me.edit(nick=newname)
+        elif cmd == "ssrbirb":
+            self.bot.buxman.adjust_bux(uid, -75000)
+            chan = self.bot.get_channel(int(parts[2]))
+            await chan.send("", file=discord.File("otherbirb.jpg"))
 
 def setup(bot):
 
