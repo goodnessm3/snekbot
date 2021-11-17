@@ -43,20 +43,27 @@ class Shop(commands.Cog):
         parts = command.rstrip(os.linesep).split("||")
         cmd = parts[0]  # a string the identifies what to actually do
         uid = parts[1]
+        avail = self.bot.buxman.get_bux(uid)
         if cmd == "sendmessage":
               # get the discord ID so we can charge snekbux accordingly
+            if avail < 1000:
+                return
             self.bot.buxman.adjust_bux(uid, -1000)
             chan = self.bot.get_channel(int(parts[2]))
             print(parts[3])
             if len(parts[3]) > 0:
                 await chan.send(parts[3])
         elif cmd == "namechange":
+            if avail < 10000:
+                return
             newname = parts[2]
             guild_id = self.bot.settings["shop_server"]
             srv = self.bot.get_guild(guild_id)
             self.bot.buxman.adjust_bux(uid, -10000)
             await srv.me.edit(nick=newname)
         elif cmd == "ssrbirb":
+            if avail < 75000:
+                return
             self.bot.buxman.adjust_bux(uid, -75000)
             chan = self.bot.get_channel(int(parts[2]))
             await chan.send("", file=discord.File("otherbirb.jpg"))
