@@ -52,7 +52,7 @@ class Shop(commands.Cog):
             chan = self.bot.get_channel(int(parts[2]))
             print(parts[3])
             if len(parts[3]) > 0:
-                await chan.send(parts[3])
+                await chan.send(parts[3].replace("@everyone", ""))
         elif cmd == "namechange":
             if avail < 10000:
                 return
