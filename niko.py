@@ -27,13 +27,16 @@ class TwitterCheck:
 
     def __init__(self, user, myclient):
 
-        new = myclient.user_timeline(screen_name=user, count=1)
+        new = myclient.user_timeline(screen_name=user, count=1,exclude_replies=True)
+        # need to get tweets in exactly the same way as the consoom function, otherwise we might get
+        # a reply ID here that would never be encountered when filtering out replies later
         self.last = new[0].id
         self.user = user
         self.myclient = myclient
 
     def consoom_tweets(self):
 
+        print("---")
         print(f"Checking for a schedule from {self.user}")
         tweets = self.myclient.user_timeline(screen_name=self.user,count=10,exclude_replies=True)
         # get 10 at a time and stop when we find the most recent one from last time we looked
@@ -42,30 +45,39 @@ class TwitterCheck:
         current_id = tw.id
         total = 0
         found = False
+        print(f"self.last is {self.last}, this new id is {tw.id}")
 
         while not current_id == self.last:
             total += 1
-
+            print(tw.text[:50] + "...")
             if "schedule" in tw.text.lower():
+                print("found schedule mention")
                 if "media" in tw.entities.keys():  # check if the tweet has an image
+                    print("found schedule media tweet")
                     found = True
+                    self.last = current_id
                     break
             try:
                 tw = next(t)
             except StopIteration:
+                print("getting new batch")
                 # time to get a new batch. We can't just count the index because if we ask for 10
                 # but exclude replies, we might actually get less than 10 back
                 tweets = self.myclient.user_timeline(screen_name=self.user, count=10, max_id=current_id)
+                # current id-1 otherwise we might just retrieve the same tweet
                 t = iter(tweets)
                 tw = next(t)
 
             current_id = tw.id
             if total > 100:
+                print("Broke loop after 100 iterations")
                 break  # safeguard, something has gone wrong
 
         self.last = current_id
         if found:
             return f"https://twitter.com/{self.user}/status/{str(tw.id)}"
+
+        print("---")
 
 
 class TwitterListener(commands.Cog):
@@ -105,6 +117,8 @@ class TwitterListener(commands.Cog):
 
     async def get_tweet(self):
 
+        # for Niko only
+
         tweet = self.client.user_timeline(user_id="3096462845", count=1)[0]
 
         if tweet.in_reply_to_status_id is None and tweet.id != self.latest_tweet:
@@ -123,6 +137,7 @@ class TwitterListener(commands.Cog):
             tw = q.consoom_tweets()
             if tw:
                 await self.thread.send(tw)
+                # TODO: delay for like 5 days once a schedule tweet has been found
             await asyncio.sleep(500)  # space out the checking
 
         print("checked all vtube schedules, re-scheduling check function")
