@@ -200,7 +200,7 @@ class Gelbooru(commands.Cog):
             fb = random.choice(self.fallback_tags)
             xml = await self.myget(fb)
         res = random.choice(xml.findall("post"))
-        url = res.get("file_url")
+        url = res.find("file_url").text
         i = 0
         while url in self.seen and i < 23:
             # try to find a novel image but bail out after trying 23 times
