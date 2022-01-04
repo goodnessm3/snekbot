@@ -205,10 +205,10 @@ class Gelbooru(commands.Cog):
         while url in self.seen and i < 23:
             # try to find a novel image but bail out after trying 23 times
             res = random.choice(xml.findall("post"))
-            url = res.get("file_url")
+            url = res.find("file_url").text
             i += 1
             
-        tags = res.get("tags")
+        tags = res.find("tags").text
         self.seen.append(url)
         if not fb:
             return int(results_count), url, tags
@@ -247,8 +247,8 @@ class Gelbooru(commands.Cog):
         new_xml = await(self.myget(tag, limit=True))
         
         posts = new_xml.findall("post")
-        most_recent = posts[0].get("md5")
-        tags = posts[0].get("tags")
+        most_recent = posts[0].find("md5").text
+        tags = posts[0].find("tags").text
         # print("old md5 was {}, new is {}".format(last, most_recent))
         base_time = self.monitoring_times[tag]
 
@@ -264,7 +264,7 @@ class Gelbooru(commands.Cog):
                         print("This image matched a monitored tag: {}".format(q))
                         self.dbman.insert_monitored(q, channel=cid, last=most_recent)
             chan = self.bot.get_channel(cid)
-            url = posts[0].get("file_url")
+            url = posts[0].find("file_url").text
             self.last_search[cid] = tags
             await chan.send("I found a new {} image! {}".format(tag, url))
 
