@@ -320,3 +320,14 @@ class Manager:
 
         self.db.commit()  # MUST commit change so that it's visible to the web code
 
+    def log_tags(self, als):
+
+        for x in als:
+
+            self.cursor.execute('''INSERT OR IGNORE INTO tags (tag, count) VALUES (?, ?)''', (x, 0))
+            # always try to create a new entry but silently ignore it if there's a conflict with pre-existing
+            self.cursor.execute('''UPDATE tags SET count = count + 1 WHERE tag = ?''', (x,))
+            # now we have definitely made the entry there is always something to update
+
+        self.db.commit()
+
