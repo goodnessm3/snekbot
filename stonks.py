@@ -33,7 +33,7 @@ class Stonks(commands.Cog):
         funds = self.bot.buxman.get_bux(ctx.message.author.id)
 
         if cost > funds:
-            await ctx.message.channel.send(f"You are too poor! That order is for {total_cost} snekbux and you only have"
+            await ctx.message.channel.send(f"You are too poor! That order is for {cost} snekbux and you only have"
                                            f" {funds} snekbux!")
             return
 
