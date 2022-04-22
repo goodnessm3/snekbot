@@ -336,19 +336,16 @@ class Manager:
         """Give snekbux dividend to all players owning equity in a tag"""
 
         for x in als:
-            print(f"checking {x}")
 
             self.cursor.execute('''SELECT SUM(paid) FROM stonks WHERE tag = ?''', (x,))
             total_value = self.cursor.fetchone()[0]
             if not total_value:
                 continue
-            print(f"somoene owns {x}")
             # TODO: do this all inside SQLite
             self.cursor.execute('''SELECT DISTINCT uid FROM stonks WHERE tag = ?''', (x,))
             lst = list(self.cursor.fetchall())
             for q in lst:
                 q = str(q[0])  # unpack tuple, there really must be a better way to do this
-                print(f"updating {q}")
                 self.cursor.execute('''SELECT paid FROM stonks WHERE uid = ? AND tag = ?''', (q, x))
                 z = self.cursor.fetchone()[0]
                 dividend = int(float(z)/total_value * 50)
@@ -391,12 +388,12 @@ class Manager:
     def calculate_equity(self, uid, tag):
 
         self.cursor.execute('''SELECT paid FROM stonks WHERE tag = ? and uid = ?''', (tag, uid))
-        user_amt = self.cursor.fetchone()[0]
+        user_amt = self.cursor.fetchone()
         self.cursor.execute('''SELECT SUM(paid) FROM stonks WHERE tag = ?''', (tag,))
         total_amt = self.cursor.fetchone()[0]
-        if total_amt == 0 or user_amt == 0:
+        if total_amt == 0 or user_amt is None:
             return 0
-        equity = 100 * float(user_amt)/total_amt
+        equity = 100 * float(user_amt[0])/total_amt  # don't unpack user_amt tuple till here, avoid error
 
         return round(equity, 1)
 
