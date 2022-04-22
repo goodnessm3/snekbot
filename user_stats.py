@@ -331,3 +331,86 @@ class Manager:
 
         self.db.commit()
 
+    def distribute_dividend(self, als):
+
+        """Give snekbux dividend to all players owning equity in a tag"""
+
+        for x in als:
+            print(f"checking {x}")
+
+            self.cursor.execute('''SELECT SUM(paid) FROM stonks WHERE tag = ?''', (x,))
+            total_value = self.cursor.fetchone()[0]
+            if not total_value:
+                continue
+            print(f"somoene owns {x}")
+            # TODO: do this all inside SQLite
+            self.cursor.execute('''SELECT DISTINCT uid FROM stonks WHERE tag = ?''', (x,))
+            lst = list(self.cursor.fetchall())
+            for q in lst:
+                q = str(q[0])  # unpack tuple, there really must be a better way to do this
+                print(f"updating {q}")
+                self.cursor.execute('''SELECT paid FROM stonks WHERE uid = ? AND tag = ?''', (q, x))
+                z = self.cursor.fetchone()[0]
+                dividend = int(float(z)/total_value * 50)
+                self.cursor.execute('''UPDATE stonks SET return = return + ? WHERE uid = ? AND tag = ?''',
+                                    (dividend, q, x))
+
+        self.db.commit()
+            
+
+    def adjust_stonk(self, uid, tag, cost):
+        """Quantity may be POSITIVE (player is buying) or NEGATIVE (player is selling)"""
+
+        # do a check for whether the player has enough bux outside this function, first
+        # or if they are trying to sell more stonk than they have
+        # -ve or +ve numbers will be handled appropriately here
+
+        #self.cursor.execute('''INSERT OR IGNORE INTO stonks (uid, tag, paid) VALUES (?, ?, 0)''',
+                            #(uid, tag))
+        self.cursor.execute('''SELECT paid FROM stonks WHERE uid = ? and tag = ?''', (uid, tag))
+        r = self.cursor.fetchone()
+        if not r:
+            self.cursor.execute('''INSERT INTO stonks (uid, tag, paid, return) VALUES (?, ?, 0, 0)''', (uid, tag))
+
+        self.cursor.execute('''UPDATE stonks
+                                SET paid = paid + ?
+                                WHERE tag = ? AND uid = ?''', (cost, tag, uid))
+
+        self.cursor.execute('''DELETE FROM stonks WHERE paid = 0''')
+        # might have sold everything, so don't leave zero values hanging around
+
+        self.db.commit()
+
+    def get_stonk(self, uid, tag):
+
+        self.cursor.execute('''SELECT paid FROM stonks WHERE tag = ? AND UID = ?''', (tag, uid))
+        res = self.cursor.fetchone()
+        if res:
+            return res[0]
+
+    def calculate_equity(self, uid, tag):
+
+        self.cursor.execute('''SELECT paid FROM stonks WHERE tag = ? and uid = ?''', (tag, uid))
+        user_amt = self.cursor.fetchone()[0]
+        self.cursor.execute('''SELECT SUM(paid) FROM stonks WHERE tag = ?''', (tag,))
+        total_amt = self.cursor.fetchone()[0]
+        if total_amt == 0 or user_amt == 0:
+            return 0
+        equity = 100 * float(user_amt)/total_amt
+
+        return round(equity, 1)
+
+    def get_portfolio(self, uid):
+
+        self.cursor.execute('''SELECT tag, paid FROM stonks WHERE uid = ?''', (uid,))
+        return self.cursor.fetchall()
+
+    def pay_dividend(self, uid):
+
+        """Transfer all of user's tag returns into their main snekbux balance"""
+
+        self.cursor.execute('''UPDATE stats SET bux = bux +
+                            (SELECT SUM(return) FROM stonks WHERE uid = ?)
+                            WHERE uid = ?''', (uid, uid))
+        self.cursor.execute('''UPDATE stonks SET return = 0 WHERE uid = ?''', (uid,))
+        self.db.commit()

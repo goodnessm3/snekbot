@@ -108,6 +108,7 @@ class Gelbooru(commands.Cog):
         except:
             pass  # tag server not talking to us
         self.dbman.log_tags(tags)  # a record of how many times each tag came up
+        self.dbman.distribute_dividend(tags)
 
     @commands.command()
     async def gelbooru(self, ctx, *args):
@@ -137,10 +138,9 @@ class Gelbooru(commands.Cog):
         res, tags = await self.get_image(*args)
         self.last_search[ctx.message.channel.id] = tags
         await ctx.message.channel.send(res)
-        try:
-            await self.add_tags(ctx)
-        except:
-            pass  # tag server doesn't want to talk to us, never mind
+
+        await self.add_tags(ctx)
+
 
     async def get_image(self, *args, **kwargs):
 
@@ -181,10 +181,9 @@ class Gelbooru(commands.Cog):
 
         # TODO: this tag adding code is duplicated in the "gelbooru" command, probably better if
         # it only happened in one place
-        try:
-            await self.add_tags(ctx)
-        except:
-            pass  # tag server doesn't want to talk to us, never mind
+
+        await self.add_tags(ctx)
+
 
     async def myget(self, *args, limit=False, offset=0):
 
