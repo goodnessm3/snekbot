@@ -39,6 +39,7 @@ class Stonks(commands.Cog):
 
         uid = str(ctx.message.author.id)
         self.bot.buxman.adjust_stonk(uid, tag, cost)
+        self.bot.buxman.adjust_bux(uid, -1 * cost)  # negative because we are buying
         eq = self.bot.buxman.calculate_equity(uid, tag)
         msg = f"You invested {cost} snekbux in {tag}! You will recieve a dividend each time an image with that tag is " \
               f"posted. You now own {eq}% of this tag."
@@ -71,6 +72,7 @@ class Stonks(commands.Cog):
             out += f"You can't sell more shares than you have, selling {cost} snekbux worth instead. "
 
         self.bot.buxman.adjust_stonk(uid, tag, cost * -1)  # -1 because we are SELLING
+        self.bot.buxman.adjust_bux(uid, cost)  # positive because we are selling
         eq = self.bot.buxman.calculate_equity(uid, tag)
         out +=f"Sold {cost} snekbux worth of {tag}! You now own {eq}% of this tag."
 
