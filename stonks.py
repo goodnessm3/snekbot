@@ -99,6 +99,9 @@ class Stonks(commands.Cog):
         new  = self.bot.buxman.get_bux(ctx.message.author.id)
         delta = new - old
         out += f"\nYou have gained {delta} snekbux from your investments since you last checked!"
+        
+        if len(out) > 1800:
+            out = "You have a bunch of tags and they're too many to print in a Discord message idk"
 
         await ctx.message.channel.send(out)
 

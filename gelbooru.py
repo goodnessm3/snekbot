@@ -260,8 +260,8 @@ class Gelbooru(commands.Cog):
         #print(self.tag_hashes)
         #print("purging tag hashes")
         self.tag_hashes = []
-        self.bot.loop.call_later(100000, lambda: asyncio.ensure_future(self.purge_tag_hashes()))
-        # 1.15 days = 100000 seconds
+        self.bot.loop.call_later(1000000, lambda: asyncio.ensure_future(self.purge_tag_hashes()))
+        # 11.5 days = 1000000 seconds
 
     async def check_monitored_tag(self, tag, cid):
 
