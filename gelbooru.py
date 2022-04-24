@@ -27,6 +27,7 @@ class Gelbooru(commands.Cog):
         self.dbman = bot.buxman  # interface to the SQL database
         self.monitoring_times = defaultdict(lambda: 25000)  # {tag:int}
         # number of seconds to wait before querying, gradually increases if no new tag is found
+        self.tag_hashes = []  # don't distribute dividend for the same image searched twice within a period of time
 
         self.serv = Tree_Server(self.bot.settings["tagserver_url"], 2012)
 
@@ -38,6 +39,8 @@ class Gelbooru(commands.Cog):
             tag, cid = x
             self.bot.loop.create_task(self.check_monitored_tag(tag, cid))
             print("scheduled checking of tag {}".format(tag))
+
+        self.bot.loop.create_task(self.purge_tag_hashes())
 
     @commands.command()
     async def nr_tags(self, ctx):
@@ -108,7 +111,11 @@ class Gelbooru(commands.Cog):
         except:
             pass  # tag server not talking to us
         self.dbman.log_tags(tags)  # a record of how many times each tag came up
-        self.dbman.distribute_dividend(tags)
+
+        hashed = hash("".join(tags))
+        if not hashed in self.tag_hashes:
+            self.tag_hashes.append(hashed)
+            self.dbman.distribute_dividend(tags)
 
     @commands.command()
     async def gelbooru(self, ctx, *args):
@@ -247,6 +254,14 @@ class Gelbooru(commands.Cog):
         tagstring = "+".join(args)
         await ctx.message.channel.send("I will stop monitoring for {} images".format(tagstring))
         self.dbman.unmonitor(tagstring)
+
+    async def purge_tag_hashes(self):
+
+        #print(self.tag_hashes)
+        #print("purging tag hashes")
+        self.tag_hashes = []
+        self.bot.loop.call_later(100000, lambda: asyncio.ensure_future(self.purge_tag_hashes()))
+        # 1.15 days = 100000 seconds
 
     async def check_monitored_tag(self, tag, cid):
 
