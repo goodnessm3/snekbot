@@ -165,8 +165,15 @@ async def on_ready():
 
     print("Logged in as {0.user}".format(bot))
     # load default cogs
-    for cog in ["plant", "gelbooru", "peros", "niko", "remind", "daily", "most_peroed", "game"]:
-        bot.load_extension(cog)
+    with open("default_cogs.json", "rb") as f:
+        cogs = json.load(f)
+        for c in cogs:
+            try:
+                bot.load_extension(c)
+                print(f"loaded {c} cog")
+            except Exception as e:
+                print(f"Error loading {c} cog! See below:")
+                (print(e))
     print("loaded default cogs")
 
 @bot.command()
