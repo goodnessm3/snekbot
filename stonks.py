@@ -93,17 +93,16 @@ class Stonks(commands.Cog):
             a, b = x
             eq = self.bot.buxman.calculate_equity(ctx.message.author.id, a)
             out += f"{a}: {b} snekbux ({eq}% equity)\n"
-
-        old = self.bot.buxman.get_bux(ctx.message.author.id)
-        self.bot.buxman.pay_dividend(ctx.message.author.id)
-        new  = self.bot.buxman.get_bux(ctx.message.author.id)
-        delta = new - old
-        out += f"\nYou have gained {delta} snekbux from your investments since you last checked!"
-        
-        if len(out) > 1800:
-            out = "You have a bunch of tags and they're too many to print in a Discord message idk"
+            if len(out) > 1600:
+                break  # stop message getting too long, limit is 2000 characters
 
         await ctx.message.channel.send(out)
+
+        divi = self.bot.buxman.print_dividend(ctx.message.author.id)
+        if not divi == 0:
+            await ctx.message.channel.send(
+                f"\nYou have gained {divi} snekbux from your investments since you last checked!")
+
 
 
 def setup(bot):

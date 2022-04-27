@@ -411,3 +411,14 @@ class Manager:
                             WHERE uid = ?''', (uid, uid))
         self.cursor.execute('''UPDATE stonks SET return = 0 WHERE uid = ?''', (uid,))
         self.db.commit()
+
+    def print_dividend(self, uid):
+
+        """Needs to be in this module because it's called from multiple places including the main snek code"""
+
+        old = self.get_bux(uid)
+        self.pay_dividend(uid)
+        new = self.get_bux(uid)
+        delta = new - old
+
+        return(delta)

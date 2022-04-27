@@ -241,6 +241,11 @@ async def bux(ctx):
     bux = bot.buxman.get_bux(ctx.message.author.id)
     await ctx.message.channel.send("{}, you have {} snekbux.".format(ctx.message.author.mention, bux))
 
+    divi = bot.buxman.print_dividend(ctx.message.author.id)
+    if not divi == 0:
+        await ctx.message.channel.send(
+            f"\nYou have gained {divi} snekbux from your investments since you last checked!")
+
 
 @bot.event
 async def on_command_error(ctx, error):
