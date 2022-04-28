@@ -8,6 +8,8 @@ import tweepy
 import aiohttp
 from async_timeout import timeout
 from hashlib import md5  # for naming saved images
+from PIL import Image  # for resizing images to thumbnail
+from io import BytesIO
 
 class TwitInfo:
 
@@ -21,6 +23,14 @@ with open("twitter_keys.json", "r") as f:
     twitinfo = json.load(f)
     for k, v in twitinfo.items():
         TI.__setattr__(k, v)  # this is needlessly complicated
+
+
+def resize(tup):
+    """Not generic - just resizes a picture to 300 px wide"""
+
+    x, y = tup
+    ratio = 300.0 / x
+    return int(x * ratio), int(y * ratio)
 
 
 class TweetGetter:
@@ -83,11 +93,23 @@ class Mpero(commands.Cog):
         for tup in best_pictures:
             postid, channel = tup
             url = await self.get_image_url(postid, channel)
-            self.bot.buxman.add_image_link(postid, channel, url)
+            if not url:  # not all peroed posts will have an image, so don't try to download one
+                continue
+            thumb = await self.save_image_from_url(url)  # returns the name (md5 hash) of the thumbnail
+            self.bot.buxman.add_image_link(postid, channel, url, thumb)
             print(f"Added a link to best of: {url}")
 
         print("finished updating links for most peroed posts")
         self.bot.loop.call_later(432000, lambda: asyncio.ensure_future(self.periodic_link_update()))
+
+    async def update_gallery(self):
+
+        pass
+        '''
+        images = self.bot.buxman.get_gallery_links()  # tuples of (thumbnail path, off site URL for image)
+        for x in images:
+            a, b = x
+            a = a.strip()'''
 
     async def get_image_url(self, msgid, ch):
 
@@ -119,19 +141,30 @@ class Mpero(commands.Cog):
         else:
             return url
 
-
     async def save_image_from_url(self, url, dest="/var/www/html/bestof/"):
+
+        """Download and save a SMALL THUMBNAIL for use in the gallery (we will link offsite to the big image).
+        Returns the name of the saved file."""
 
         ext = url.split(".")[-1]  # could be jpg or png
         async with aiohttp.ClientSession(loop=self.bot.loop) as s:
             async with s.get(url) as r:
                 async with timeout(60):
                     a = await r.read()
-                    hasher = md5()
+
+                    byts = BytesIO(a)  # make it look like a file so PIL can understand how to open it
+                    im = Image.open(byts)
+                    new_size = resize(im.size)
+                    im = im.resize(new_size)
+
+                    hasher = md5()  # name the file by its hash
                     hasher.update(a)
                     hsh = hasher.hexdigest()
-                    with open(dest + hsh + "." + ext, "wb") as f:
-                        f.write(a)
+
+                    fname = dest + hsh + "." + ext
+                    im.save(fname)
+                    return hsh + "." + ext
+
 
 
 

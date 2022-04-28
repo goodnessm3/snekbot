@@ -297,13 +297,19 @@ class Manager:
 
         """Returns (channel id, post id) of all posts with more than 5 peros for addition of image links."""
 
-        self.cursor.execute('''SELECT postid, channel FROM most_peroed WHERE count > 5 and image_url is NULL''')
+        self.cursor.execute('''SELECT postid, channel FROM most_peroed WHERE count > ? and image_url is NULL''',
+                            (threshold,))
         return self.cursor.fetchall()
 
-    def add_image_link(self, postid, channel, lnk):
+    def get_gallery_links(self, threshold=5):
 
-        self.cursor.execute('''UPDATE most_peroed SET image_url = ? WHERE postid = ? AND channel = ?''',
-                            (lnk, postid, channel))
+        self.cursor.execute('''SELECT thumb, image_url FROM most_peroed WHERE count > ?''', (threshold,))
+        return self.cursor.fetchall()
+
+    def add_image_link(self, postid, channel, lnk, thumb):
+
+        self.cursor.execute('''UPDATE most_peroed SET image_url = ?, thumb = ? WHERE postid = ? AND channel = ?''',
+                            (lnk, thumb, postid, channel))
         self.db.commit()
 
     def mark_as_downloaded(self, channelid, postid):
