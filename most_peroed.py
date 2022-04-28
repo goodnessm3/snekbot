@@ -95,7 +95,12 @@ class Mpero(commands.Cog):
             url = await self.get_image_url(postid, channel)
             if not url:  # not all peroed posts will have an image, so don't try to download one
                 continue
-            thumb = await self.save_image_from_url(url)  # returns the name (md5 hash) of the thumbnail
+            try:
+                thumb = await self.save_image_from_url(url)  # returns the name (md5 hash) of the thumbnail
+            except Exception as e:
+                print(e)  # sometimes PIL won't be able to read the URL for whatever reason, e.g. it's actually a webm
+                continue
+
             self.bot.buxman.add_image_link(postid, channel, url, thumb)
             print(f"Added a link to best of: {url}")
 
