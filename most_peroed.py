@@ -1,3 +1,4 @@
+import asyncio
 from discord.ext import commands
 from discord import Embed
 import re
@@ -50,6 +51,7 @@ class Mpero(commands.Cog):
     def __init__(self, bot):
 
         self.bot = bot
+        self.bot.loop.create_task(self.periodic_link_update())
 
     @commands.command()
     async def most_peroed(self, ctx):
@@ -73,7 +75,21 @@ class Mpero(commands.Cog):
             await ctx.message.channel.send(msg.attachments[0].url)
             # might have been an uploaded image, twitter posts will be captured in just the content
 
-    async def download_image(self, ch, msgid):
+    async def periodic_link_update(self):
+
+        print("updating image links for most peroed posts")
+
+        best_pictures = self.bot.buxman.get_best_of()
+        for tup in best_pictures:
+            postid, channel = tup
+            url = await self.get_image_url(postid, channel)
+            self.bot.buxman.add_image_link(postid, channel, url)
+            print(f"Added a link to best of: {url}")
+
+        print("finished updating links for most peroed posts")
+        self.bot.loop.call_later(432000, lambda: asyncio.ensure_future(self.periodic_link_update()))
+
+    async def get_image_url(self, msgid, ch):
 
         """Save an image locally, that was either a twitter link or a direct image upload
         to include in the best-of gallery"""
@@ -82,7 +98,7 @@ class Mpero(commands.Cog):
         imgurl_finder = re.compile('''https://.+gelbooru.com/images/.+\.(?:jpg|png)''')
         # images / any number of non whitespace up to a ., then either .jpg or .png, in non-capturing parentheses
 
-        channel = chan = self.bot.get_channel(ch)
+        channel = self.bot.get_channel(ch)
         msg = await channel.fetch_message(msgid)
         c = msg.content
         url = None
@@ -101,7 +117,7 @@ class Mpero(commands.Cog):
             # print("nothing found in msg")
             return  # nothing to save
         else:
-            await self.save_image_from_url(url)
+            return url
 
 
     async def save_image_from_url(self, url, dest="/var/www/html/bestof/"):

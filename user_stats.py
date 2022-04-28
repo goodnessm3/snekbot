@@ -293,6 +293,24 @@ class Manager:
                                 ORDER BY RANDOM()''')
         return self.cursor.fetchone()
 
+    def get_best_of(self, threshold=5):
+
+        """Returns (channel id, post id) of all posts with more than 5 peros for addition of image links."""
+
+        self.cursor.execute('''SELECT postid, channel FROM most_peroed WHERE count > 5 and image_url is NULL''')
+        return self.cursor.fetchall()
+
+    def add_image_link(self, postid, channel, lnk):
+
+        self.cursor.execute('''UPDATE most_peroed SET image_url = ? WHERE postid = ? AND channel = ?''',
+                            (lnk, postid, channel))
+        self.db.commit()
+
+    def mark_as_downloaded(self, channelid, postid):
+
+        self.cursor.execute('''UPDATE most_peroed SET done = 1 WHERE postid = ? AND channel = ?''', (channelid, postid))
+        self.db.commit()
+
     def remove_pero_post(self, postid):
 
         """For removing a post entry"""
