@@ -330,7 +330,7 @@ class Gelbooru(commands.Cog):
         self.dbman.monitor_tag_deltas()
         # this command tracks how many times the tag came up in a result since the last time checked,
         # all done inside the SQL command in the DB manager
-        self.bot.loop.call_later(20, lambda: asyncio.ensure_future(self.monitor_tag_deltas()))
+        self.bot.loop.call_later(86400, lambda: asyncio.ensure_future(self.monitor_tag_deltas()))
 
 
 def setup(bot):
