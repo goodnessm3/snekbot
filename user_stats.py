@@ -446,3 +446,19 @@ class Manager:
         delta = new - old
 
         return(delta)
+
+    def monitor_tag_deltas(self):
+
+        self.cursor.executescript(
+            '''CREATE TABLE chng AS 
+            SELECT tags.tag, tags."count", tags2."count" AS "newcount", 0 AS "change"
+            FROM tags 
+            INNER JOIN tags2 ON  tags.tag = tags2.tag;
+            UPDATE chng SET "change" = "count"-"newcount";
+            INSERT INTO tag_deltas SELECT "tag", "change", CURRENT_TIMESTAMP FROM chng WHERE "change" != 0;
+            DROP TABLE chng;
+            DROP TABLE tags2;
+            CREATE TABLE tags2 AS SELECT * FROM tags;
+            '''
+        )
+        self.db.commit()

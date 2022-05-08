@@ -41,6 +41,7 @@ class Gelbooru(commands.Cog):
             print("scheduled checking of tag {}".format(tag))
 
         self.bot.loop.create_task(self.purge_tag_hashes())
+        self.bot.loop.create_task(self.monitor_tag_deltas())
 
     @commands.command()
     async def nr_tags(self, ctx):
@@ -322,6 +323,14 @@ class Gelbooru(commands.Cog):
               f"than the previous week! Here's an example: {res}"
 
         await ctx.message.channel.send(msg)
+
+    async def monitor_tag_deltas(self):
+
+        print("Updating gelbooru tag frequency history")
+        self.dbman.monitor_tag_deltas()
+        # this command tracks how many times the tag came up in a result since the last time checked,
+        # all done inside the SQL command in the DB manager
+        self.bot.loop.call_later(20, lambda: asyncio.ensure_future(self.monitor_tag_deltas()))
 
 
 def setup(bot):
