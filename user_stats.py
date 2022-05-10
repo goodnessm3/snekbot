@@ -293,7 +293,7 @@ class Manager:
                                 ORDER BY RANDOM()''')
         return self.cursor.fetchone()
 
-    def get_best_of(self, threshold=5):
+    def get_best_of(self, threshold=4):
 
         """Returns (channel id, post id) of all posts with more than 5 peros for addition of image links."""
 
@@ -301,7 +301,7 @@ class Manager:
                             (threshold,))
         return self.cursor.fetchall()
 
-    def get_gallery_links(self, threshold=5):
+    def get_gallery_links(self, threshold=4):
 
         self.cursor.execute('''SELECT thumb, image_url FROM most_peroed WHERE count > ?''', (threshold,))
         return self.cursor.fetchall()
