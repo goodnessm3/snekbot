@@ -430,6 +430,11 @@ class Manager:
 
         """Transfer all of user's tag returns into their main snekbux balance"""
 
+        self.cursor.execute('''SELECT * FROM stonks WHERE uid = ?''', (uid,))
+        res = self.cursor.fetchone()  # need to check if the user actually has any stonks
+        if not res:
+            return 0
+
         self.cursor.execute('''UPDATE stats SET bux = bux +
                             (SELECT SUM(return) FROM stonks WHERE uid = ?)
                             WHERE uid = ?''', (uid, uid))
