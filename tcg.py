@@ -34,15 +34,19 @@ class Tcg(commands.Cog):
     def __init__(self, bot):
 
         self.bot = bot
-        self.chan = self.bot.get_channel(510951714942353428)
+        self.chan = self.bot.get_channel(bot.settings["robot_zone"])
         self.claimed = False  # try to prevent double-claiming
         self.msg = None  # reference to the loot crate message so we can be sure we are getting reacts to the right one
+        self.bot.loop.call_later(120, lambda: asyncio.ensure_future(self.drop()))
 
-    @commands.command()
-    async def drop(self, ctx):
+    async def drop(self):
 
+        if self.msg:
+            await self.msg.delete()  # only one message up at a time
         self.msg = await self.chan.send("A random loot crate has appeared! Click the react to claim it.")
         await self.msg.add_reaction("\U0001f4e6")
+
+        self.bot.loop.call_later(random.randint(3600, 10000), lambda: asyncio.ensure_future(self.drop()))
 
     async def on_reaction(self, payload):
 
@@ -51,7 +55,10 @@ class Tcg(commands.Cog):
         if not ms == self.msg:
             return  # don't care, not the right message, maybe there's some kind of clever filter for this
 
+        self.claimed = True
+
         await self.msg.delete()
+        self.msg = None
 
         uid = payload.member.id
         card = self.bot.buxman.random_unowned_card()
@@ -62,6 +69,8 @@ class Tcg(commands.Cog):
 
         await channel.send(f"{ms.author.mention}, claimed the loot crate! It contained this card. Type 'snek cards'"
                                 f"to see all your cards. http://raibu.streams.moe/cards/{card}.jpg")
+
+        self.claimed = False
 
 
     @commands.Cog.listener()
@@ -78,12 +87,14 @@ class Tcg(commands.Cog):
         uid = ctx.message.author.id
         crds = self.bot.buxman.get_cards(uid)
         if not crds:
-            await ctx.message.channel.send("No cards")
+            await ctx.message.channel.send("You have no cards! Claim random loot crates, or type 'snek crate'"
+                                           "to buy a loot crate for 3000 snekbux.")
             return
         dict_for_layout = defaultdict(list)
 
         for x in crds:
             serial, series = x
+            serial = str(serial).zfill(5)  # leading zeroes
             dict_for_layout[series].append(serial)
         pilimage = self.make_card_summary(dict_for_layout)
         pilimage.save(f"/var/www/html/card_summaries/{uid}.jpg")
