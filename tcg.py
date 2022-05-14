@@ -9,7 +9,7 @@ from math import ceil
 from PIL import Image
 import shutil
 import os
-import datetime
+import time
 
 dud_items = ["single dirty sock",
               "packet of broken biscuits",
@@ -43,7 +43,21 @@ class Tcg(commands.Cog):
         self.chan = self.bot.get_channel(bot.settings["robot_zone"])
         self.claimed = False  # try to prevent double-claiming
         self.msg = None  # reference to the loot crate message so we can be sure we are getting reacts to the right one
+        self.random_chances = defaultdict(lambda: 0)
+
         self.bot.loop.call_later(12, lambda: asyncio.ensure_future(self.drop()))
+        self.bot.loop.call_later(500, lambda: asyncio.ensure_future(self.decrement_counters()))
+
+
+    async def decrement_counters(self):
+
+        print("Decrementing counters")
+        print(self.random_chances)
+        for k, v in self.random_chances.values():
+            if v > 0:
+                self.random_chances[k] -= 1
+
+        self.bot.loop.call_later(500, lambda: asyncio.ensure_future(self.decrement_counters()))
 
     async def drop(self):
 
@@ -105,7 +119,7 @@ class Tcg(commands.Cog):
         pilimage = self.make_card_summary(dict_for_layout)
 
         max_name = len(os.listdir("/var/www/html/card_summaries/"))
-        save_name = str(uid) + datetime.date.today().isoformat()
+        save_name = str(int(time.time()))[-8:]  # unique enough
 
         pilimage.save(f"/var/www/html/card_summaries/{save_name}.jpg")
         # pilimage.save(f"C:\\s\\tcg\\{uid}.jpg") for testing
@@ -152,9 +166,12 @@ class Tcg(commands.Cog):
             return
         self.bot.buxman.adjust_bux(ctx.message.author.id, -crate_cost)
 
-        chance = random.randint(0, 10)
+        uid = ctx.message.author.id
+        self.random_chances[uid] += 1
+        max_rand = max(100 - 20 * self.random_chances[uid], 10)
+        chance = random.randint(0, 100)
 
-        if chance > 4:
+        if chance < max_rand:
             uid = ctx.message.author.id
             card = self.bot.buxman.random_unowned_card()
             self.bot.buxman.add_card(uid, card)
