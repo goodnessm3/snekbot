@@ -33,7 +33,7 @@ dud_items = ["single dirty sock",
 crate_cost = 2500
 RANDOM_MIN = 1800
 RANDOM_MAX = 10000
-
+GACHA_LUCK_TIME = 180
 
 class Tcg(commands.Cog):
 
@@ -46,7 +46,7 @@ class Tcg(commands.Cog):
         self.random_chances = defaultdict(lambda: 0)
 
         self.bot.loop.call_later(12, lambda: asyncio.ensure_future(self.drop()))
-        self.bot.loop.call_later(500, lambda: asyncio.ensure_future(self.decrement_counters()))
+        self.bot.loop.call_later(GACHA_LUCK_TIME, lambda: asyncio.ensure_future(self.decrement_counters()))
 
 
     async def decrement_counters(self):
@@ -58,7 +58,7 @@ class Tcg(commands.Cog):
                 new_v = int(v/2)  # int 1/2 is zero btw
                 self.random_chances[k] = new_v
 
-        self.bot.loop.call_later(500, lambda: asyncio.ensure_future(self.decrement_counters()))
+        self.bot.loop.call_later(GACHA_LUCK_TIME, lambda: asyncio.ensure_future(self.decrement_counters()))
 
     async def drop(self):
 
