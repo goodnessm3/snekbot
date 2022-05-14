@@ -53,7 +53,7 @@ class Tcg(commands.Cog):
 
         print("Decrementing counters")
         print(self.random_chances)
-        for k, v in self.random_chances.values():
+        for k, v in self.random_chances.items():
             if v > 0:
                 new_v = int(v/2)  # int 1/2 is zero btw
                 self.random_chances[k] = new_v
@@ -168,7 +168,7 @@ class Tcg(commands.Cog):
         self.bot.buxman.adjust_bux(ctx.message.author.id, -crate_cost)
 
         uid = ctx.message.author.id
-        max_rand = max(100 - 20 * self.random_chances[uid], 10)
+        max_rand = max(100 - 10 * self.random_chances[uid], 10)
         chance = random.randint(0, 100)
 
         if chance < max_rand:
