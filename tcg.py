@@ -8,6 +8,8 @@ from collections import defaultdict
 from math import ceil
 from PIL import Image
 import shutil
+import os
+import datetime
 
 dud_items = ["single dirty sock",
               "packet of broken biscuits",
@@ -28,6 +30,10 @@ dud_items = ["single dirty sock",
               "screenplay of 'A talking Cat!?!'",
               "room-temperature Coca-cola"]
 
+crate_cost = 2500
+RANDOM_MIN = 1800
+RANDOM_MAX = 10000
+
 
 class Tcg(commands.Cog):
 
@@ -46,7 +52,7 @@ class Tcg(commands.Cog):
         self.msg = await self.chan.send("A random loot crate has appeared! Click the react to claim it.")
         await self.msg.add_reaction("\U0001f4e6")
 
-        self.bot.loop.call_later(random.randint(3600, 10000), lambda: asyncio.ensure_future(self.drop()))
+        self.bot.loop.call_later(random.randint(RANDOM_MIN, RANDOM_MAX), lambda: asyncio.ensure_future(self.drop()))
 
     async def on_reaction(self, payload):
 
@@ -87,8 +93,8 @@ class Tcg(commands.Cog):
         uid = ctx.message.author.id
         crds = self.bot.buxman.get_cards(uid)
         if not crds:
-            await ctx.message.channel.send("You have no cards! Claim random loot crates, or type 'snek crate'"
-                                           "to buy a loot crate for 3000 snekbux.")
+            await ctx.message.channel.send(f"You have no cards! Claim random loot crates, or type 'snek crate'"
+                                           "to buy a loot crate for {crate_cost} snekbux.")
             return
         dict_for_layout = defaultdict(list)
 
@@ -97,10 +103,14 @@ class Tcg(commands.Cog):
             serial = str(serial).zfill(5)  # leading zeroes
             dict_for_layout[series].append(serial)
         pilimage = self.make_card_summary(dict_for_layout)
-        pilimage.save(f"/var/www/html/card_summaries/{uid}.jpg")
+
+        max_name = len(os.listdir("/var/www/html/card_summaries/"))
+        save_name = str(uid) + datetime.date.today().isoformat()
+
+        pilimage.save(f"/var/www/html/card_summaries/{save_name}.jpg")
         # pilimage.save(f"C:\\s\\tcg\\{uid}.jpg") for testing
 
-        await ctx.message.channel.send(f"http://raibu.streams.moe/card_summaries/{uid}.jpg")
+        await ctx.message.channel.send(f"http://raibu.streams.moe/card_summaries/{save_name}.jpg")
 
     def make_card_summary(self, files):
 
@@ -136,11 +146,9 @@ class Tcg(commands.Cog):
     @commands.command()
     async def crate(self, ctx):
 
-        crate_cost = 2500
-
         funds = self.bot.buxman.get_bux(ctx.message.author.id)
         if funds < crate_cost:
-            await ctx.message.channel.send(f'''A loot crate costs 3000 snekbux and you only have {funds}!''')
+            await ctx.message.channel.send(f'''A loot crate costs {crate_cost} snekbux and you only have {funds}!''')
             return
         self.bot.buxman.adjust_bux(ctx.message.author.id, -crate_cost)
 
