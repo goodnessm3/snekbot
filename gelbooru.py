@@ -100,12 +100,14 @@ class Gelbooru(commands.Cog):
 
         if not self.last_search.get(ctx.message.channel.id, None):
             # got a None result
-            return []
+            return None  # should this really be an empty list?
         return self.last_search[ctx.message.channel.id]
 
     async def add_tags(self, ctx):
 
         tag_list = (await self.get_tags(ctx))
+        if not tag_list:
+            return  # no tags because the search gave 0 results
         tags = tag_list.split(" ")
         try:
             await self.serv.add_tag(tags)
@@ -145,10 +147,9 @@ class Gelbooru(commands.Cog):
         self.last_tags[ctx.message.channel.id] = list(args)
         res, tags = await self.get_image(*args)
         self.last_search[ctx.message.channel.id] = tags
+
         await ctx.message.channel.send(res)
-
         await self.add_tags(ctx)
-
 
     async def get_image(self, *args, **kwargs):
 
