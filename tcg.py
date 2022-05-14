@@ -55,7 +55,8 @@ class Tcg(commands.Cog):
         print(self.random_chances)
         for k, v in self.random_chances.values():
             if v > 0:
-                self.random_chances[k] -= 1
+                new_v = int(v/2)  # int 1/2 is zero btw
+                self.random_chances[k] = new_v
 
         self.bot.loop.call_later(500, lambda: asyncio.ensure_future(self.decrement_counters()))
 
