@@ -46,7 +46,7 @@ class Tcg(commands.Cog):
         self.msg = await self.chan.send("A random loot crate has appeared! Click the react to claim it.")
         await self.msg.add_reaction("\U0001f4e6")
 
-        self.bot.loop.call_later(12, lambda: asyncio.ensure_future(self.drop()))
+        self.bot.loop.call_later(random.randint(3600, 10000), lambda: asyncio.ensure_future(self.drop()))
 
     async def on_reaction(self, payload):
 
