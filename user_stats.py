@@ -473,3 +473,19 @@ class Manager:
             '''
         )
         self.db.commit()
+
+    def add_card(self, uid, card):
+
+        self.cursor.execute('''UPDATE cards SET owner = ? WHERE serial = ?''', (uid, card))
+        self.db.commit()
+
+    def get_cards(self, uid):
+
+        self.cursor.execute('''SELECT serial, series FROM cards WHERE owner = ?''', (uid,))
+        return self.cursor.fetchall()
+
+    def random_unowned_card(self):
+
+        self.cursor.execute('''SELECT serial FROM cards WHERE owner IS NULL ORDER BY RANDOM() LIMIT 1''')
+        serial = str(self.cursor.fetchone()[0]).zfill(5)  # convert serial number to padded string for file name use
+        return serial
