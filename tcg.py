@@ -167,11 +167,11 @@ class Tcg(commands.Cog):
         self.bot.buxman.adjust_bux(ctx.message.author.id, -crate_cost)
 
         uid = ctx.message.author.id
-        self.random_chances[uid] += 1
         max_rand = max(100 - 20 * self.random_chances[uid], 10)
         chance = random.randint(0, 100)
 
         if chance < max_rand:
+            self.random_chances[uid] += 1  # only make chance harder if the player won
             uid = ctx.message.author.id
             card = self.bot.buxman.random_unowned_card()
             self.bot.buxman.add_card(uid, card)
