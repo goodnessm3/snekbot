@@ -136,7 +136,7 @@ class Tcg(commands.Cog):
     @commands.command()
     async def crate(self, ctx):
 
-        crate_cost = 3000
+        crate_cost = 2500
 
         funds = self.bot.buxman.get_bux(ctx.message.author.id)
         if funds < crate_cost:
