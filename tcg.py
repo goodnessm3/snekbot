@@ -37,7 +37,7 @@ class Tcg(commands.Cog):
         self.chan = self.bot.get_channel(bot.settings["robot_zone"])
         self.claimed = False  # try to prevent double-claiming
         self.msg = None  # reference to the loot crate message so we can be sure we are getting reacts to the right one
-        self.bot.loop.call_later(120, lambda: asyncio.ensure_future(self.drop()))
+        self.bot.loop.call_later(12, lambda: asyncio.ensure_future(self.drop()))
 
     async def drop(self):
 
@@ -46,7 +46,7 @@ class Tcg(commands.Cog):
         self.msg = await self.chan.send("A random loot crate has appeared! Click the react to claim it.")
         await self.msg.add_reaction("\U0001f4e6")
 
-        self.bot.loop.call_later(random.randint(3600, 10000), lambda: asyncio.ensure_future(self.drop()))
+        self.bot.loop.call_later(12, lambda: asyncio.ensure_future(self.drop()))
 
     async def on_reaction(self, payload):
 
@@ -67,7 +67,7 @@ class Tcg(commands.Cog):
         shutil.move(f"/home/rargh/cards/{card}.jpg", f"/var/www/html/cards/{card}.jpg")
         # move from card repository into somewhere they can actually be served from
 
-        await channel.send(f"{ms.author.mention}, claimed the loot crate! It contained this card. Type 'snek cards'"
+        await channel.send(f"{payload.member.mention}, claimed the loot crate! It contained this card. Type 'snek cards'"
                                 f"to see all your cards. http://raibu.streams.moe/cards/{card}.jpg")
 
         self.claimed = False
