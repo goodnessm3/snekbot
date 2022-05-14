@@ -75,18 +75,24 @@ class Manager:
 
     def adjust_bux(self, uid, amt):
 
-        try:
-            self.cursor.execute('''update stats set bux = bux + ? where uid = ?''', (amt, uid))
-        except sqlite3.IntegrityError:
-            # constraint is bux must be > 0, just set to 0 if it would otherwise go below
-            self.cursor.execute('''update stats set bux = 0 where uid = ?''', (uid,))
+        self.cursor.execute('''SELECT * FROM stats WHERE uid = ?''', (uid,))
+        res = self.cursor.fetchone()  # check if user already existed
+        if not res:  # we need to add a new entry for them
+            self.cursor.execute('''insert into stats (uid, bux) VALUES (?, ?)''', (uid, amt))
+        else:
+            self.cursor.execute('''update stats set bux = MAX(0, bux + ?) where uid = ?''', (amt, uid))
+            # make sure it doesn't go negative
 
+        """  # old code removed, UNIQUE constraint was failing so make the explicit check above for presence of uid
         self.cursor.execute('''
         insert into stats (uid, bux) select ?, ? where (select changes() = 0)
         ''', (uid, amt))
         # this statement only runs if changes() = 0 i.e. nothing was changed by the previous statement
         # because the uid wasn't present in the database keys. This saves having to check for the presence
         # of the uid every time, just add the entry if it didn't exist already.
+        
+        # probably the issue was select changes() no longer = 0
+        """
 
         self.db.commit()
 
