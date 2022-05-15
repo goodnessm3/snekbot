@@ -30,10 +30,10 @@ dud_items = ["single dirty sock",
               "screenplay of 'A talking Cat!?!'",
               "room-temperature Coca-cola"]
 
-crate_cost = 2500
-RANDOM_MIN = 1800
+RANDOM_MIN = 500
 RANDOM_MAX = 10000
 GACHA_LUCK_TIME = 180
+CRATE_COST_TIME = 120
 
 class Tcg(commands.Cog):
 
@@ -44,9 +44,11 @@ class Tcg(commands.Cog):
         self.claimed = False  # try to prevent double-claiming
         self.msg = None  # reference to the loot crate message so we can be sure we are getting reacts to the right one
         self.random_chances = defaultdict(lambda: 0)
+        self.crate_cost = 2500
 
         self.bot.loop.call_later(12, lambda: asyncio.ensure_future(self.drop()))
         self.bot.loop.call_later(GACHA_LUCK_TIME, lambda: asyncio.ensure_future(self.decrement_counters()))
+        self.bot.loop.call_later(CRATE_COST_TIME, lambda: asyncio.ensure_future(self.modulate_crate_cost()))
 
 
     async def decrement_counters(self):
@@ -59,6 +61,15 @@ class Tcg(commands.Cog):
                 self.random_chances[k] = new_v
 
         self.bot.loop.call_later(GACHA_LUCK_TIME, lambda: asyncio.ensure_future(self.decrement_counters()))
+
+    async def modulate_crate_cost(self):
+
+        print("checking crate cost")
+        if self.crate_cost > 2500:
+            self.crate_cost -= 100
+        print(f"Crate cost is {self.crate_cost}")
+
+        self.bot.loop.call_later(CRATE_COST_TIME, lambda: asyncio.ensure_future(self.modulate_crate_cost()))
 
     async def drop(self):
 
@@ -109,7 +120,7 @@ class Tcg(commands.Cog):
         crds = self.bot.buxman.get_cards(uid)
         if not crds:
             await ctx.message.channel.send(f"You have no cards! Claim random loot crates, or type 'snek crate'"
-                                           "to buy a loot crate for {crate_cost} snekbux.")
+                                           "to buy a loot crate for {self.crate_cost} snekbux.")
             return
         dict_for_layout = defaultdict(list)
 
@@ -162,10 +173,13 @@ class Tcg(commands.Cog):
     async def crate(self, ctx):
 
         funds = self.bot.buxman.get_bux(ctx.message.author.id)
-        if funds < crate_cost:
-            await ctx.message.channel.send(f'''A loot crate costs {crate_cost} snekbux and you only have {funds}!''')
+        if funds < self.crate_cost:
+            mess = f'''A loot crate currently costs {self.crate_cost} snekbux and you only have {funds}!'''
+            if self.crate_cost > 2500:
+                mess += ''' The cost will drop soon, so check back later!'''
+            await ctx.message.channel.send(mess)
             return
-        self.bot.buxman.adjust_bux(ctx.message.author.id, -crate_cost)
+        self.bot.buxman.adjust_bux(ctx.message.author.id, -self.crate_cost)
 
         uid = ctx.message.author.id
         max_rand = max(100 - 10 * self.random_chances[uid], 10)
@@ -177,18 +191,20 @@ class Tcg(commands.Cog):
             card = self.bot.buxman.random_unowned_card()
             self.bot.buxman.add_card(uid, card)
             shutil.move(f"/home/rargh/cards/{card}.jpg", f"/var/www/html/cards/{card}.jpg")
-            await ctx.message.channel.send(f'''{ctx.message.author.mention}, you bought a loot crate for {crate_cost}'''
+            await ctx.message.channel.send(f'''{ctx.message.author.mention}, you bought a loot crate for {self.crate_cost}'''
                                             f''' snekbux and it contained: http://raibu.streams.moe/cards/{card}.jpg''')
         else:
-            if random.randint(0, 100) > 70:
+            if random.randint(0, 100) > 50:
                 won_bux = random.randint(50, 7000)
                 self.bot.buxman.adjust_bux(uid, won_bux)
                 await ctx.message.channel.send(f'''{ctx.message.author.mention}, you bought a loot crate for'''
-                                                f''' {crate_cost} snekbux and it contained {won_bux} snekbux!''')
+                                                f''' {self.crate_cost} snekbux and it contained {won_bux} snekbux!''')
             else:
                 item = random.choice(dud_items)
-                await ctx.message.channel.send(f'''{ctx.message.author.mention}, you bought a loot crate for {crate_cost}'''
+                await ctx.message.channel.send(f'''{ctx.message.author.mention}, you bought a loot crate for {self.crate_cost}'''
                                                 f''' snekbux and it contained: ```{item}```''')
+
+        self.crate_cost += 100  # slowly ramp up cost and have it decay back down
 
 
 
