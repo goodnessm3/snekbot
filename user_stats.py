@@ -489,3 +489,15 @@ class Manager:
         self.cursor.execute('''SELECT serial FROM cards WHERE owner IS NULL ORDER BY RANDOM() LIMIT 1''')
         serial = str(self.cursor.fetchone()[0]).zfill(5)  # convert serial number to padded string for file name use
         return serial
+
+    def get_uids_with_cards(self):
+
+        self.cursor.execute('''SELECT DISTINCT owner FROM cards WHERE owner NOT NULL''')
+        return [x[0] for x in self.cursor.fetchall()]
+
+    def update_card_trader_names(self, adict):
+
+        self.cursor.execute('''DELETE FROM names''')
+        for k, v in adict.items():  # dict of uid: screen name
+            self.cursor.execute('''INSERT INTO names (uid, screen_name) VALUES (?, ?)''', (k ,v))
+        self.db.commit()

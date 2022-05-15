@@ -344,8 +344,15 @@ bot.regexes = {re.compile('''a big [^\s]+\Z'''): on_bane,
 @bot.event
 async def on_message(message):
 
+    if message.author == bot.user:
+        return
+
     cont = message.content
     ctx = await bot.get_context(message)
+
+    if type(ctx.message.channel) == discord.channel.DMChannel:
+        await ctx.message.channel.send("#robot-zone please")
+        return
 
     if message.channel.id in bot.cbchannels:
         if ctx.command is None and message.content.startswith(tuple(prefixes)):
@@ -366,9 +373,6 @@ async def on_message(message):
 
     if random.randint(0, 150) == 13:
         await message.add_reaction(chr(127814))  # eggplant
-
-    if message.author == bot.user:
-        return
 
     for reg, func in bot.regexes.items():
         ma = reg.findall(cont)
