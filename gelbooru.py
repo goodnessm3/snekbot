@@ -162,7 +162,7 @@ class Gelbooru(commands.Cog):
             return '''{} results.\n{}'''.format(counts, url), tags
 
     @commands.command()
-    @commands.cooldown(8, 180, type=commands.BucketType.user)
+    @commands.cooldown(6, 240, type=commands.BucketType.user)
     async def again(self, ctx, *args):
 
         """repeat the last search, optionally with extra tags"""
