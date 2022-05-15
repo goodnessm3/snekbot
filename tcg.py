@@ -180,9 +180,15 @@ class Tcg(commands.Cog):
             await ctx.message.channel.send(f'''{ctx.message.author.mention}, you bought a loot crate for {crate_cost}'''
                                             f''' snekbux and it contained: http://raibu.streams.moe/cards/{card}.jpg''')
         else:
-            item = random.choice(dud_items)
-            await ctx.message.channel.send(f'''{ctx.message.author.mention}, you bought a loot crate for {crate_cost}'''
-                                            f''' snekbux and it contained: ```{item}```''')
+            if random.randint(0, 100) > 70:
+                won_bux = random.randint(50, 7000)
+                self.bot.buxman.adjust_bux(uid, won_bux)
+                await ctx.message.channel.send(f'''{ctx.message.author.mention}, you bought a loot crate for'''
+                                                f''' {crate_cost} snekbux and it contained {won_bux} snekbux!''')
+            else:
+                item = random.choice(dud_items)
+                await ctx.message.channel.send(f'''{ctx.message.author.mention}, you bought a loot crate for {crate_cost}'''
+                                                f''' snekbux and it contained: ```{item}```''')
 
 
 
