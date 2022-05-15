@@ -57,7 +57,6 @@ class Tcg(commands.Cog):
         self.bot.loop.call_later(GACHA_LUCK_TIME, lambda: asyncio.ensure_future(self.decrement_counters()))
         self.bot.loop.call_later(CRATE_COST_TIME, lambda: asyncio.ensure_future(self.modulate_crate_cost()))
 
-    @commands.command()
     async def update_player_names(self):
 
         uids = self.bot.buxman.get_uids_with_cards()
@@ -68,7 +67,6 @@ class Tcg(commands.Cog):
 
         self.bot.buxman.update_card_trader_names(adict)
         self.bot.loop.call_later(86400, lambda: asyncio.ensure_future(self.update_player_names()))
-
 
     async def decrement_counters(self):
 
