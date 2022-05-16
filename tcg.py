@@ -205,6 +205,10 @@ class Tcg(commands.Cog):
 
         uid = ctx.message.author.id
         crds = self.bot.buxman.get_cards(uid)
+        if len(crds) > 100:
+            await ctx.message.channel.send("Too many cards, wait for a new way to check this. In the meantime you"
+                                           "can go to the trade interface.")
+            return
         if not crds:
             await ctx.message.channel.send(f"You have no cards! Claim random loot crates, or type 'snek crate'"
                                            "to buy a loot crate.")
