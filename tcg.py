@@ -331,21 +331,22 @@ class Tcg(commands.Cog):
             await ctx.message.channel.send(",".join(bad))
             return
 
-        self.offered_cards.extend(serial_list)  # reserve cards for this trade only
+        serial_list_str = [str(int(x)) for x in serial_list]  # now that we have done the check, convert serials to ints
 
-        serial_list = [str(int(x)) for x in serial_list]  # now that we have done the check, convert serials to ints
-
-        owner_check = self.bot.buxman.verify_ownership(serial_list, source_id, dest_id)
+        owner_check = self.bot.buxman.verify_ownership(serial_list_str, source_id, dest_id)
         if not owner_check:
             await ctx.message.channel.send("This trade contains cards not owned by either party, "
                                            "or cards only owned by one party.")
             return
 
-        a, b, ser1, ser2 = self.bot.buxman.get_owners(serial_list)
+        a, b, ser1, ser2 = self.bot.buxman.get_owners(serial_list_str)
 
         if len(ser1) > 9 or len(ser2) > 9:
             await ctx.message.channel.send("Maximum of 18 cards at a time! (Max 9 from each party).")
             return
+
+        self.offered_cards.extend(serial_list)  # reserve cards for this trade only, now that we are past all
+        # possible bail out points
 
         # a and b are ID's of the traders, probably put this on the image too one day
         img = self.make_trade_image(ser1, ser2)
@@ -358,7 +359,7 @@ class Tcg(commands.Cog):
         await m.add_reaction("\U0000274C")
 
         self.waiting_for_response[m.id] = int(source_id)
-        self.pending_trades[m.id] = serial_list
+        self.pending_trades[m.id] = serial_list_str
         self.trade_owners[m.id] = int(dest_id)  # only the user with dest_id can confirm the trade
         # need to convert to an int for internal discord use rather than in messages or the database
         print("added a trade, pending list is now")
