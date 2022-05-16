@@ -501,3 +501,54 @@ class Manager:
         for k, v in adict.items():  # dict of uid: screen name
             self.cursor.execute('''INSERT INTO names (uid, screen_name) VALUES (?, ?)''', (k ,v))
         self.db.commit()
+
+    def verify_ownership(self, serial_list, owner1, owner2):
+
+        """Return True only if all cards in serial list are owned either by 1 or 2"""
+        query_tuple = f'''({",".join(serial_list)})'''
+        print(f'''SELECT DISTINCT(owner) FROM cards WHERE serial IN {query_tuple}''')
+        self.cursor.execute(f'''SELECT DISTINCT(owner) FROM cards WHERE serial IN {query_tuple}''')
+        res = [x[0] for x in self.cursor.fetchall()]
+        print(res)
+        owner1 = int(owner1)
+        owner2 = int(owner2)
+
+        if owner1 == owner2:
+            return False  # could have been devious
+        if owner1 in res and owner2 in res and len(res) == 2:
+            return True
+        else:
+            return False
+
+    def execute_trade(self, serial_list):
+
+        serial_list = list(set(serial_list))
+        a, b, a_cards, b_cards = self.get_owners(serial_list)  # disentangle the list into who owns what
+
+        a_tuple = ",".join([str(x) for x in a_cards])
+        b_tuple = ",".join([str(x) for x in b_cards])
+        print("a tuple", a_tuple)
+        print("b tuple", b_tuple)
+
+        self.cursor.execute(f'''UPDATE cards SET owner = ? WHERE serial IN ({a_tuple})''', (b, ))
+        self.cursor.execute(f'''UPDATE cards SET owner = ? WHERE serial IN ({b_tuple})''', (a, ))
+
+        self.db.commit()
+
+    def get_owners(self, serial_list):
+
+        "Returns owner a, owner b, list of owner a's cards, list of owner b's cards"
+
+        query_tuple = f'''({",".join(serial_list)})'''
+        self.cursor.execute(f'''SELECT DISTINCT(owner) FROM cards WHERE serial IN {query_tuple}''')
+        res = [x[0] for x in self.cursor.fetchall()]
+        a, b = res
+        print(f"Distctinct owners are {a} and {b}")
+        self.cursor.execute(f'''SELECT serial FROM cards WHERE serial IN {query_tuple} AND owner = ?''', (a, ))
+        a_cards = [x[0] for x in self.cursor.fetchall()]
+        print("A's cards", a_cards)
+        self.cursor.execute(f'''SELECT serial FROM cards WHERE serial IN {query_tuple} AND owner = ?''', (b,))
+        b_cards = [x[0] for x in self.cursor.fetchall()]
+        print("B's cards", b_cards)
+
+        return a, b, a_cards, b_cards

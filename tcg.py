@@ -10,6 +10,7 @@ from PIL import Image
 import shutil
 import os
 import time
+import re
 
 dud_items = ["single dirty sock",
               "packet of broken biscuits",
@@ -51,11 +52,31 @@ class Tcg(commands.Cog):
         self.msg = None  # reference to the loot crate message so we can be sure we are getting reacts to the right one
         self.random_chances = defaultdict(lambda: 0)
         self.crate_cost = defaultdict(lambda: 2500)  # a dictionary of user:cost
+        self.pending_trades = {}  # a dict of message id: serial list. When the message is reacted to,
+        # the trade described by serial list will trigger
+        self.trade_owners = {}  # only pay attention to reacts from this person
+        self.waiting_for_response = {}  # players can only have one open trade at a time to avoid MAJOR headaches
+        # message id:player
+        self.offered_cards = []  # ANY card from ANYONE that is currently offered for trade, make sure unique
 
         self.bot.loop.call_later(10, lambda: asyncio.ensure_future(self.update_player_names()))
         self.bot.loop.call_later(12, lambda: asyncio.ensure_future(self.drop()))
         self.bot.loop.call_later(GACHA_LUCK_TIME, lambda: asyncio.ensure_future(self.decrement_counters()))
         self.bot.loop.call_later(CRATE_COST_TIME, lambda: asyncio.ensure_future(self.modulate_crate_cost()))
+
+    def look_up_trade(self, msg):
+
+        """Return the serial list of the trade which is asked for in message"""
+
+        return self.pending_trades[msg]
+
+    def remove_trade(self, msg):
+
+        print("removing from pending trades")
+        print(self.pending_trades)
+        self.pending_trades.pop(msg)
+        print("after removal")
+        print(self.pending_trades)
 
     async def update_player_names(self):
 
@@ -122,14 +143,62 @@ class Tcg(commands.Cog):
 
         self.claimed = False
 
+    def remove_cards_from_offered(self, als):
+
+        print("self.offered cards was", self.offered_cards)
+        print("removing", als)
+        for x in als:
+            self.offered_cards.remove(str(x).zfill(5))
+
+        print("now self.offered cards is", self.offered_cards)
+
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
+
+        chan = self.bot.get_channel(payload.channel_id)
+        mid = payload.message_id
+
         if payload.member == self.bot.user:
             return  # ignore own reaction add at start
 
-        self.claimed = True   # try to deal with 2 users clicking it in a small window,
-        await self.on_reaction(payload)
+        if payload.emoji.name == "\U00002705":  # checkmark
+            try:
+                expected_id = self.trade_owners[mid]
+            except KeyError:
+                return
+            if not payload.member.id == expected_id:
+                print("Ignoring a reaction from the wrong person")
+                return
+
+            trd = self.look_up_trade(mid)
+            await chan.send("The trade was successful!")
+            print(trd)
+            self.bot.buxman.execute_trade(trd)
+            self.pending_trades.pop(mid)
+            self.trade_owners.pop(mid)
+            self.waiting_for_response.pop(mid)
+            self.remove_cards_from_offered(trd)
+
+        elif payload.emoji.name == "\U0000274C":  # cross
+            try:
+                expected_id = self.trade_owners[mid]
+            except KeyError:
+                return
+            if not payload.member.id == expected_id:
+                print("Ignoring a reaction from the wrong person")
+                return
+
+            trd = self.look_up_trade(mid)
+            await chan.send("The trade was rejected!")
+            self.pending_trades.pop(mid)
+            self.trade_owners.pop(mid)
+            self.waiting_for_response.pop(mid)
+            self.remove_cards_from_offered(trd)
+
+        elif payload.emoji.name == "\U0001f4e6":  # package
+            self.claimed = True   # try to deal with 2 users clicking it in a small window,
+            await self.on_reaction(payload)
 
     @commands.command()
     async def cards(self, ctx):
@@ -178,8 +247,7 @@ class Tcg(commands.Cog):
                     x = 0
                     y += 600
 
-        #return black.resize((2000, ceil(height / 3)))
-        return black
+        return black.resize((1000, ceil(height / 3)))
 
     def calc_height(self, files):
 
@@ -225,6 +293,121 @@ class Tcg(commands.Cog):
                                                 f''' snekbux and it contained: ```{item}```''')
 
         self.crate_cost[uid] =  self.crate_cost[uid] + 250  # slowly ramp up cost and have it decay back down
+
+    @commands.command()
+    async def trade(self, ctx, *args):
+
+        if ctx.message.author.id in self.waiting_for_response.values():
+            await ctx.message.channel.send("You can only have a single trade open at one time.")
+            return
+
+        if not args:
+            await ctx.message.channel.send("go to http://raibu.streams.moe/trade_setup to set up a trade.")
+            return
+
+        serial_verifier = re.compile('''^[0-9]{5}$''')
+        discord_id_verifier = re.compile('''[0-9]{18}''')
+
+        source_id = ctx.message.author.id
+        dest_id = args[0][2:-1]
+
+        serial_list = args[1:]
+
+        if not discord_id_verifier.match(dest_id):
+            await ctx.message.channel.send("Something is wrong with the ID of the trading partner.")
+            return
+
+        for q in serial_list:
+            if not serial_verifier.match(q):
+                await ctx.message.channel.send("Something is wrong with the card serial numbers.")
+                return
+
+        bad = []
+        for x in serial_list:
+            if x in self.offered_cards:
+                bad.append(x)
+        if not bad == []:
+            await ctx.message.channel.send("These cards are already involved in other trade proposals:")
+            await ctx.message.channel.send(",".join(bad))
+            return
+
+        self.offered_cards.extend(serial_list)  # reserve cards for this trade only
+
+        serial_list = [str(int(x)) for x in serial_list]  # now that we have done the check, convert serials to ints
+
+        owner_check = self.bot.buxman.verify_ownership(serial_list, source_id, dest_id)
+        if not owner_check:
+            await ctx.message.channel.send("This trade contains cards not owned by either party, "
+                                           "or cards only owned by one party.")
+            return
+
+        a, b, ser1, ser2 = self.bot.buxman.get_owners(serial_list)
+
+        if len(ser1) > 9 or len(ser2) > 9:
+            await ctx.message.channel.send("Maximum of 18 cards at a time! (Max 9 from each party).")
+            return
+
+        # a and b are ID's of the traders, probably put this on the image too one day
+        img = self.make_trade_image(ser1, ser2)
+        trade_name = str(int(time.time()))[-8:]
+        img.save(f"var/www/html/trades/{trade_name}.jpg")
+        # self.bot.buxman.execute_trade(serial_list) don't actually execute it here, make the image
+        await ctx.message.channel.send(f"http://raibu.streams.moe/trades/{trade_name}.jpg")
+        m = await ctx.message.channel.send(f"{args[0]}, do you accept the trade? Click the react to accept or decline.")
+        await m.add_reaction("\U00002705")
+        await m.add_reaction("\U0000274C")
+
+        self.waiting_for_response[m.id] = int(source_id)
+        self.pending_trades[m.id] = serial_list
+        self.trade_owners[m.id] = int(dest_id)  # only the user with dest_id can confirm the trade
+        # need to convert to an int for internal discord use rather than in messages or the database
+        print("added a trade, pending list is now")
+        print(self.pending_trades)
+        print("and added a trade owner:")
+        print(self.trade_owners)
+
+    def make_trade_image(self, serials1, serials2):
+
+        def coordinate_generator(start, xinc, yinc, xthresh):
+
+            x, y = start
+            startx = x
+            starty = y
+            yield start
+            for _ in range(8):
+                x += xinc
+                if x >= xthresh:
+                    x = startx
+                    y += yinc
+                yield (x, y)
+
+        width = 2400  # 3 per side horz
+        height = ((max(len(serials1), len(serials2)) - 1) // 3 + 1) * 600
+        black = Image.new("RGBA", (width, height), (0, 0, 0))
+
+        x = 0
+        y = 0
+
+        arrow = Image.open("/home/rargh/cards/arrows.png")
+
+        for h in zip(serials1, coordinate_generator((0, 0), 300, 600, 900)):
+            x, coord = h
+            full_name = f"C:\\s\\tcg\\cards\\{str(x).zfill(5)}.jpg"
+            im = Image.open(full_name)
+            black.paste(im, coord)
+
+        for h in zip(serials2, coordinate_generator((1500, 0), 300, 600, 2400)):
+            x, coord = h
+            full_name = f"C:\\s\\tcg\\cards\\{str(x).zfill(5)}.jpg"
+            im = Image.open(full_name)
+            black.paste(im, coord)
+
+        black.paste(arrow, (1000, int(height / 2) - 50))
+
+        pic = black.convert("RGB")  # so we can save as jpg
+        return pic
+
+
 
 
 def setup(bot):
