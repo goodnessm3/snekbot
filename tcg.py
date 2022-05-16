@@ -105,7 +105,7 @@ class Tcg(commands.Cog):
         print("checking crate cost")
         for k, v in self.crate_cost.items():
             if v > 2500:
-                self.crate_cost[k] = v-250
+                self.crate_cost[k] = v-100
         print(self.crate_cost)
 
         self.bot.loop.call_later(CRATE_COST_TIME, lambda: asyncio.ensure_future(self.modulate_crate_cost()))
@@ -296,7 +296,7 @@ class Tcg(commands.Cog):
                 await ctx.message.channel.send(f'''{ctx.message.author.mention}, you bought a loot crate for {cost}'''
                                                 f''' snekbux and it contained: ```{item}```''')
 
-        self.crate_cost[uid] =  self.crate_cost[uid] * 2  # slowly ramp up cost and have it decay back down
+        self.crate_cost[uid] =  self.crate_cost[uid] + 200  # slowly ramp up cost and have it decay back down
 
     @commands.command()
     async def trade(self, ctx, *args):
