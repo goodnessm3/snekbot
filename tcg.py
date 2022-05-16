@@ -302,7 +302,7 @@ class Tcg(commands.Cog):
             return
 
         if not args:
-            await ctx.message.channel.send("go to http://raibu.streams.moe/trade_setup to set up a trade.")
+            await ctx.message.channel.send("go to http://raibu.streams.moe/snekstore/trade_setup to set up a trade.")
             return
 
         serial_verifier = re.compile('''^[0-9]{5}$''')
