@@ -306,7 +306,7 @@ class Tcg(commands.Cog):
             return
 
         serial_verifier = re.compile('''^[0-9]{5}$''')
-        discord_id_verifier = re.compile('''[0-9]{18}''')
+        discord_id_verifier = re.compile('''^[0-9]{17,19}$''')  # can be 17 digits only if quite an old ID!
 
         source_id = ctx.message.author.id
         dest_id = args[0][2:-1]
