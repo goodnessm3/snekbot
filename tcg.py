@@ -392,13 +392,13 @@ class Tcg(commands.Cog):
 
         for h in zip(serials1, coordinate_generator((0, 0), 300, 600, 900)):
             x, coord = h
-            full_name = f"C:\\s\\tcg\\cards\\{str(x).zfill(5)}.jpg"
+            full_name = f"/var/www/cards/{str(x).zfill(5)}.jpg"
             im = Image.open(full_name)
             black.paste(im, coord)
 
         for h in zip(serials2, coordinate_generator((1500, 0), 300, 600, 2400)):
             x, coord = h
-            full_name = f"C:\\s\\tcg\\cards\\{str(x).zfill(5)}.jpg"
+            full_name = f"/var/www/cards/{str(x).zfill(5)}.jpg"
             im = Image.open(full_name)
             black.paste(im, coord)
 
