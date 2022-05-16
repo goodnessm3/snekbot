@@ -15,6 +15,8 @@ import os
 import subprocess
 import nick
 
+LOG = open("snek_log.txt", "a")
+
 prefixes = ["?", "Snek ", "snek ", "SNEK "]   # note trailing space in name prefix
 settings = {}  # overwritten by loading functions below
 updating = False  # global variable to determine whether snek is being restarted to update
@@ -155,6 +157,7 @@ async def update(ctx):
     updating = True
     try:
         await ctx.message.channel.send("Restarting...")
+        LOG.close()
         await bot.close()
     except Exception as e:
         await ctx.message.channel.send(str(e))
@@ -189,6 +192,7 @@ async def logout(ctx):
 
     if ctx.message.author.id == bot.settings["owner_id"]:
         print("logging out")
+        LOG.close()
         await ctx.message.channel.send("Bye bye")
         await bot.close()
 
@@ -380,6 +384,9 @@ async def on_message(message):
             await func(message, ma)
             return
 
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    LOG.write(f'''{timestamp}||{message.author.id}||{message.channel.id}||{cont}\n''')
+    LOG.flush()
     await bot.process_commands(message)
 
 

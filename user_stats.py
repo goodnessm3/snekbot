@@ -83,6 +83,8 @@ class Manager:
             self.cursor.execute('''update stats set bux = MAX(0, bux + ?) where uid = ?''', (amt, uid))
             # make sure it doesn't go negative
 
+        self.cursor.execute('''INSERT INTO buxlog (uid, amt) VALUES (? ,?)''', (uid, amt))
+
         """  # old code removed, UNIQUE constraint was failing so make the explicit check above for presence of uid
         self.cursor.execute('''
         insert into stats (uid, bux) select ?, ? where (select changes() = 0)
@@ -444,7 +446,16 @@ class Manager:
         self.cursor.execute('''UPDATE stats SET bux = bux +
                             (SELECT SUM(return) FROM stonks WHERE uid = ?)
                             WHERE uid = ?''', (uid, uid))
+
+        ### dividend logging function ###
+        self.cursor.execute('''INSERT INTO buxlog (uid, amt) VALUES (
+                                        ? ,(SELECT SUM(return) FROM stonks WHERE uid = ?)
+                                        )''', (uid, uid))
+
         self.cursor.execute('''UPDATE stonks SET return = 0 WHERE uid = ?''', (uid,))
+
+
+
         self.db.commit()
 
     def print_dividend(self, uid):
