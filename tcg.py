@@ -350,7 +350,7 @@ class Tcg(commands.Cog):
         # a and b are ID's of the traders, probably put this on the image too one day
         img = self.make_trade_image(ser1, ser2)
         trade_name = str(int(time.time()))[-8:]
-        img.save(f"var/www/html/trades/{trade_name}.jpg")
+        img.save(f"/var/www/html/trades/{trade_name}.jpg")
         # self.bot.buxman.execute_trade(serial_list) don't actually execute it here, make the image
         await ctx.message.channel.send(f"http://raibu.streams.moe/trades/{trade_name}.jpg")
         m = await ctx.message.channel.send(f"{args[0]}, do you accept the trade? Click the react to accept or decline.")
