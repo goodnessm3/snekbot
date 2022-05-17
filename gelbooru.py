@@ -127,7 +127,7 @@ class Gelbooru(commands.Cog):
             self.dbman.distribute_dividend(tags)
 
     @commands.command()
-    @commands.cooldown(7, 180, type=commands.BucketType.user)
+    @commands.cooldown(6, 1200, type=commands.BucketType.user)
     async def gelbooru(self, ctx, *args):
 
         """look up a picture on gelbooru"""
@@ -160,6 +160,7 @@ class Gelbooru(commands.Cog):
 
     async def get_image(self, *args, **kwargs):
 
+        await asyncio.sleep(random.randint(0,5))  # -_-
         xml = await self.myget(*args, **kwargs)
         counts, url, tags = await self.get_result(xml)
         self.last_count = counts  # remember how many images for page offset with "again" command
@@ -169,7 +170,7 @@ class Gelbooru(commands.Cog):
             return '''{} results.\n{}'''.format(counts, url), tags
 
     @commands.command()
-    @commands.cooldown(8, 180, type=commands.BucketType.user)
+    @commands.cooldown(6, 1200, type=commands.BucketType.user)
     async def again(self, ctx, *args):
 
         """repeat the last search, optionally with extra tags"""
