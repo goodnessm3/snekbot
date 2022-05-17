@@ -132,6 +132,8 @@ class Gelbooru(commands.Cog):
 
         """look up a picture on gelbooru"""
 
+        out = ""
+
         if len(args) == 0 or args[0] == "random":
             tagpool = self.last_search.get(ctx.message.channel.id, None)
             if not tagpool:
@@ -143,9 +145,8 @@ class Gelbooru(commands.Cog):
                 candidates.append(await self.serv.get_random_tag())
             except:
                 candidates = random.sample(tagpool, min(3, len(tagpool)))
-            out = "I searched for: {}".format(", ".join(candidates))
-            out = ct.discordStringEscape(out)
-            await ctx.message.channel.send(out)
+            out += "I searched for: {}".format(", ".join(candidates))
+
             args = candidates
             self.dbman.log_search(ctx.message.author.id, ["random"])
         else:
@@ -155,12 +156,15 @@ class Gelbooru(commands.Cog):
         res, tags = await self.get_image(*args)
         self.last_search[ctx.message.channel.id] = tags
 
+        out = ct.discordStringEscape(out)
         self.recent_image_user = ctx.message.author
+        out += "\n"
+        out += res
+        await ctx.message.channel.send(out)
         await self.add_tags(ctx)
 
     async def get_image(self, *args, **kwargs):
 
-        await asyncio.sleep(random.randint(0,5))  # -_-
         xml = await self.myget(*args, **kwargs)
         counts, url, tags = await self.get_result(xml)
         self.last_count = counts  # remember how many images for page offset with "again" command
