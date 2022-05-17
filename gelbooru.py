@@ -31,6 +31,8 @@ class Gelbooru(commands.Cog):
 
         self.serv = Tree_Server(self.bot.settings["tagserver_url"], 2012)
 
+        self.recent_image_user = None  # the USER who caused the most recent image to be posted
+
         with open("tag_values.json", "r") as f:
             self.tag_values = json.load(f)
 
@@ -59,6 +61,10 @@ class Gelbooru(commands.Cog):
         Dont know if gelbooru sorts the tags. If they dont, its even more rare. To have the same tags and the tags
         being listed in the same order.
         """
+
+        if ctx.message.author == self.recent_image_user:
+            await ctx.message.channel.send("You can only value other peoples' images, not your own!")
+            return
 
         if not self.last_search.get(ctx.message.channel.id, None):  
             # returns None if no image was entered into last_search dict
@@ -149,7 +155,7 @@ class Gelbooru(commands.Cog):
         res, tags = await self.get_image(*args)
         self.last_search[ctx.message.channel.id] = tags
 
-        await ctx.message.channel.send(res)
+        self.recent_image_user = ctx.message.author
         await self.add_tags(ctx)
 
     async def get_image(self, *args, **kwargs):
@@ -192,6 +198,7 @@ class Gelbooru(commands.Cog):
         # TODO: this tag adding code is duplicated in the "gelbooru" command, probably better if
         # it only happened in one place
 
+        self.recent_image_user = ctx.message.author
         await self.add_tags(ctx)
 
 
