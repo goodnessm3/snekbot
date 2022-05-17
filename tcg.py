@@ -1,8 +1,5 @@
 from discord.ext import commands
-import xml.etree.ElementTree as ElementTree
 import random
-from async_timeout import timeout
-import json
 import asyncio
 from collections import defaultdict
 from math import ceil
@@ -41,6 +38,7 @@ RANDOM_MIN = 500
 RANDOM_MAX = 7200
 GACHA_LUCK_TIME = 180
 CRATE_COST_TIME = 120
+TRADE_TIMEOUT = 300
 
 class Tcg(commands.Cog):
 
@@ -55,28 +53,30 @@ class Tcg(commands.Cog):
         self.pending_trades = {}  # a dict of message id: serial list. When the message is reacted to,
         # the trade described by serial list will trigger
         self.trade_owners = {}  # only pay attention to reacts from this person
+        self.trade_proposers = {}  # message ID : proposer ID
         self.waiting_for_response = {}  # players can only have one open trade at a time to avoid MAJOR headaches
         # message id:player
         self.offered_cards = []  # ANY card from ANYONE that is currently offered for trade, make sure unique
+
+        self.trade_timeouts = {}  # mapping of mid:timer handle
 
         self.bot.loop.call_later(10, lambda: asyncio.ensure_future(self.update_player_names()))
         self.bot.loop.call_later(12, lambda: asyncio.ensure_future(self.drop()))
         self.bot.loop.call_later(GACHA_LUCK_TIME, lambda: asyncio.ensure_future(self.decrement_counters()))
         self.bot.loop.call_later(CRATE_COST_TIME, lambda: asyncio.ensure_future(self.modulate_crate_cost()))
 
+    async def timeout_trade(self, mid, chan):
+
+        proposer = self.trade_proposers[mid]
+        recipient = self.trade_owners[mid]
+        await chan.send(f"<@{proposer}>, your trade with <@{recipient}> timed out!")
+        self.conclude_trade(mid)
+
     def look_up_trade(self, msg):
 
         """Return the serial list of the trade which is asked for in message"""
 
         return self.pending_trades[msg]
-
-    def remove_trade(self, msg):
-
-        print("removing from pending trades")
-        print(self.pending_trades)
-        self.pending_trades.pop(msg)
-        print("after removal")
-        print(self.pending_trades)
 
     async def update_player_names(self):
 
@@ -152,6 +152,24 @@ class Tcg(commands.Cog):
 
         print("now self.offered cards is", self.offered_cards)
 
+    def conclude_trade(self, mid):
+
+        """Method to remove all the various references to the pending trade. This is either triggered by a player
+        accepting or declining (in which case the timeout is cancelled) or this will be called BY the timeout anyway."""
+
+        self.trade_timeouts[mid].cancel()  # cancelling the timeout once it's already fired has no effect
+        self.trade_timeouts.pop(mid)  # now we can get rid of the reference entirely
+
+        trd = self.look_up_trade(mid)
+
+        self.pending_trades.pop(mid)
+        self.trade_owners.pop(mid)
+        self.waiting_for_response.pop(mid)
+        self.trade_proposers.pop(mid)
+        self.remove_cards_from_offered(trd)
+
+        print("conclude trade function ran")
+        # you know, this is probably the time to wrap all these variables up into a new class
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
@@ -165,6 +183,7 @@ class Tcg(commands.Cog):
         if payload.emoji.name == "\U00002705":  # checkmark
             try:
                 expected_id = self.trade_owners[mid]
+                proposer = self.trade_proposers[mid]  # note, duplicated below
             except KeyError:
                 return
             if not payload.member.id == expected_id:
@@ -172,29 +191,23 @@ class Tcg(commands.Cog):
                 return
 
             trd = self.look_up_trade(mid)
-            await chan.send("The trade was successful!")
-            print(trd)
+            await chan.send(f"<@{proposer}>, your trade with {payload.member.mention} trade was successful!")
             self.bot.buxman.execute_trade(trd)
-            self.pending_trades.pop(mid)
-            self.trade_owners.pop(mid)
-            self.waiting_for_response.pop(mid)
-            self.remove_cards_from_offered(trd)
+            self.conclude_trade(mid)
 
         elif payload.emoji.name == "\U0000274C":  # cross
             try:
                 expected_id = self.trade_owners[mid]
+                proposer = self.trade_proposers[mid]  # note, duplicated above
             except KeyError:
                 return
-            if not payload.member.id == expected_id:
-                print("Ignoring a reaction from the wrong person")
-                return
-
-            trd = self.look_up_trade(mid)
-            await chan.send("The trade was rejected!")
-            self.pending_trades.pop(mid)
-            self.trade_owners.pop(mid)
-            self.waiting_for_response.pop(mid)
-            self.remove_cards_from_offered(trd)
+            if payload.member.id == expected_id:  # recipient is accepting or rejecting
+                trd = self.look_up_trade(mid)
+                await chan.send(f"<@{proposer}>, {payload.member.mention} has rejected your trade!")
+                self.conclude_trade(mid)
+            elif payload.member.id == proposer:  # proposer also has the option to cancel using the react
+                await chan.send(f"<@{proposer}> withdrew the trade offer with <@{expected_id}>!")
+                self.conclude_trade(mid)
 
         elif payload.emoji.name == "\U0001f4e6":  # package
             self.claimed = True   # try to deal with 2 users clicking it in a small window,
@@ -352,6 +365,8 @@ class Tcg(commands.Cog):
             await ctx.message.channel.send("Maximum of 18 cards at a time! (Max 9 from each party).")
             return
 
+        # --- the trade is definitely going ahead now --- #
+
         self.offered_cards.extend(serial_list)  # reserve cards for this trade only, now that we are past all
         # possible bail out points
 
@@ -359,16 +374,23 @@ class Tcg(commands.Cog):
         img = self.make_trade_image(ser1, ser2)
         trade_name = str(int(time.time()))[-8:]
         img.save(f"/var/www/html/trades/{trade_name}.jpg")
-        # self.bot.buxman.execute_trade(serial_list) don't actually execute it here, make the image
+
         await ctx.message.channel.send(f"http://raibu.streams.moe/trades/{trade_name}.jpg")
-        m = await ctx.message.channel.send(f"{args[0]}, do you accept the trade? Click the react to accept or decline.")
+        m = await ctx.message.channel.send(f"{args[0]}, do you accept the trade? Click the react to accept or decline."
+                                           f" The proposer can also cancel the trade by clicking the react."
+                                           f" The trade will automatically time out after 5 minutes.")
         await m.add_reaction("\U00002705")
         await m.add_reaction("\U0000274C")
 
-        self.waiting_for_response[m.id] = int(source_id)
+        self.trade_proposers[m.id] = ctx.message.author.id  # remember who proposed the trade
+        self.waiting_for_response[m.id] = int(source_id)  # for checking the accept/reject react comes from right person
         self.pending_trades[m.id] = serial_list_str
         self.trade_owners[m.id] = int(dest_id)  # only the user with dest_id can confirm the trade
         # need to convert to an int for internal discord use rather than in messages or the database
+        handle = self.bot.loop.call_later(TRADE_TIMEOUT,
+                                 lambda: asyncio.ensure_future(self.timeout_trade(m.id, ctx.message.channel)))
+        self.trade_timeouts[m.id] = handle  # so we can look up the handle and cancel the scheduled task
+        # put a pending timeout regardless. Either the trade times out, or acceptance/refusal concludes it anyway.
         print("added a trade, pending list is now")
         print(self.pending_trades)
         print("and added a trade owner:")
@@ -397,16 +419,19 @@ class Tcg(commands.Cog):
         y = 0
 
         arrow = Image.open("/home/rargh/cards/arrows.png")
+        #arrow = Image.open("C:\\s\\tcg\\arrows.png")
 
         for h in zip(serials1, coordinate_generator((0, 0), 300, 600, 900)):
             x, coord = h
             full_name = f"/var/www/html/cards/{str(x).zfill(5)}.jpg"
+            #full_name = f"C:\\s\\tcg\\cards\\{str(x).zfill(5)}.jpg"
             im = Image.open(full_name)
             black.paste(im, coord)
 
         for h in zip(serials2, coordinate_generator((1500, 0), 300, 600, 2400)):
             x, coord = h
             full_name = f"/var/www/html/cards/{str(x).zfill(5)}.jpg"
+            #full_name = f"C:\\s\\tcg\\cards\\{str(x).zfill(5)}.jpg"
             im = Image.open(full_name)
             black.paste(im, coord)
 
