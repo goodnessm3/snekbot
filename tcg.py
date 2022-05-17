@@ -8,6 +8,7 @@ import shutil
 import os
 import time
 import re
+from prettytable import PrettyTable
 
 dud_items = ["single dirty sock",
               "packet of broken biscuits",
@@ -440,7 +441,19 @@ class Tcg(commands.Cog):
         pic = black.convert("RGB")  # so we can save as jpg
         return pic
 
+    @commands.command()
+    async def card_search(self, ctx, *qry):
 
+        qry = " ".join(qry)  # either search for one thing or they want a thing with a space in it
+        res = self.bot.buxman.card_search(qry)
+        restable = PrettyTable()
+        restable.field_names = ["Card owner", "Character", "Series"]
+        for q in res[:10]:
+            restable.add_row(q)
+        await ctx.message.channel.send(f"```{restable}```")
+
+        if len(res) > 10:
+            await ctx.message.channel.send(f"Plus {len(res)-10} results omitted, maybe refine your search.")
 
 
 def setup(bot):

@@ -563,3 +563,13 @@ class Manager:
         print("B's cards", b_cards)
 
         return a, b, a_cards, b_cards
+
+    def card_search(self, astr):
+
+        search_qry = f'''%{astr}%'''
+        print(search_qry)
+        self.cursor.execute('''SELECT screen_name, card_name, series FROM cards 
+                                INNER JOIN names ON 
+                                names.uid = cards.owner WHERE card_name LIKE ? OR series LIKE ?''',
+                            (search_qry, search_qry))
+        return self.cursor.fetchall()
