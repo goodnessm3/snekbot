@@ -9,6 +9,8 @@ import clean_text as ct
 from Tree_Server import Tree_Server
 import aiohttp
 
+HUMAN_CHECK_THRESHOLD = 5
+
 
 class Gelbooru(commands.Cog):
 
@@ -33,17 +35,53 @@ class Gelbooru(commands.Cog):
 
         self.recent_image_user = None  # the USER who caused the most recent image to be posted
 
+        self.super_users = defaultdict(lambda:0)  # people who need to be rate limited
+        self.awaited_super_users = {}  # emoji: user ID, need to get a react from this user
+
+        self.reaction_emojis = [
+            ("\U00002705", "check mark"),
+            ("\U0001F49A", "green heart"),
+            ("\U0001F341", "maple leaf"),
+            ("\U0001F34B", "lemon"),
+            ("\U0001F955", "carrot"),
+            ("\U0001F980", "crab"),
+            ("\U0001F9F1", "brick"),
+            ("\U0001F4CE", "paperclip"),
+        ]
+        self.expected_reacts = []  # add emojis here that snek is expecting to get
+
         with open("tag_values.json", "r") as f:
             self.tag_values = json.load(f)
 
+        '''
         mons = self.dbman.get_all_monitored()
         for x in mons:
             tag, cid = x
             self.bot.loop.create_task(self.check_monitored_tag(tag, cid))
             print("scheduled checking of tag {}".format(tag))
+        '''#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         self.bot.loop.create_task(self.purge_tag_hashes())
         self.bot.loop.create_task(self.monitor_tag_deltas())
+        self.bot.loop.call_later(300, lambda: asyncio.ensure_future(self.decrement_superusers()))
+
+    def check_high_rate(self, uid):
+
+        if self.super_users[uid] > HUMAN_CHECK_THRESHOLD:
+            return True
+        return False
+
+    async def decrement_superusers(self):
+
+        print("resetting superuser dict")
+        for k, v in self.super_users.items():
+            if v > 0:
+                # new = v-1
+                self.super_users[k] = 0  # actually just reset totally
+
+        self.super_users = defaultdict(lambda: 0)
+        self.awaited_super_users = {}
+        self.bot.loop.call_later(1800, lambda: asyncio.ensure_future(self.decrement_superusers()))
 
     @commands.command()
     async def nr_tags(self, ctx):
@@ -55,6 +93,7 @@ class Gelbooru(commands.Cog):
     @commands.command()
     # @commands.cooldown(1, 120, type=commands.BucketType.user)
     async def value(self, ctx):
+
         """value the last gelbooru image searched
 
         I guess comparing tags works, but there could be some super rare occasion, where the tags are identical.
@@ -126,11 +165,61 @@ class Gelbooru(commands.Cog):
             self.tag_hashes.append(hashed)
             self.dbman.distribute_dividend(tags)
 
+    async def captcha(self, chan, uid):
+
+        emojicode, emojiname = random.choice(self.reaction_emojis)
+        samp = []
+        while len(samp) < 5:
+            # we can't just use random.sample() because all must be unique
+            new = random.choice(self.reaction_emojis)
+            if new[0] == emojicode or new in samp:
+                continue
+            else:
+                samp.append(new)
+        others = [x[0] for x in samp]
+        mess = await chan.send(
+            f"It looks like you're enjoying this feature a lot! Click the {emojiname} to continue using it!")
+        self.awaited_super_users[emojicode] = uid
+        others.append(emojicode)
+        random.shuffle(others)
+        print(samp)
+        await asyncio.sleep(0.5)
+        for x in others:
+            await asyncio.sleep(0.5)
+            print(f"adding rxn")
+            await mess.add_reaction(x)
+
+    '''
     @commands.command()
-    @commands.cooldown(6, 1200, type=commands.BucketType.user)
+    async def testfunc(self, ctx):
+
+        uid = ctx.message.author.id
+        if self.check_high_rate(uid):
+            if not uid in self.awaited_super_users.values():
+                await self.captcha(ctx.message.channel, uid)
+            return
+
+        self.super_users[uid] += 1  # count the number of times the user used this command
+
+        await ctx.message.channel.send("teststr")
+    '''
+
+
+    @commands.command()
+    @commands.cooldown(8, 300, type=commands.BucketType.user)
     async def gelbooru(self, ctx, *args):
 
         """look up a picture on gelbooru"""
+
+        ########### put this in a decorator ##########
+        uid = ctx.message.author.id
+        if self.check_high_rate(uid):
+            if not uid in self.awaited_super_users.values():
+                await self.captcha(ctx.message.channel, uid)
+            return
+
+        self.super_users[uid] += 1  # count the number of times the user used this command
+        #################################################
 
         out = ""
 
@@ -174,10 +263,20 @@ class Gelbooru(commands.Cog):
             return '''{} results.\n{}'''.format(counts, url), tags
 
     @commands.command()
-    @commands.cooldown(6, 1200, type=commands.BucketType.user)
+    @commands.cooldown(8, 300, type=commands.BucketType.user)
     async def again(self, ctx, *args):
 
         """repeat the last search, optionally with extra tags"""
+
+        ########### put this in a decorator ##########
+        uid = ctx.message.author.id
+        if self.check_high_rate(uid):
+            if not uid in self.awaited_super_users.values():
+                await self.captcha(ctx.message.channel, uid)
+            return
+
+        self.super_users[uid] += 1  # count the number of times the user used this command
+        #################################################
 
         cid = ctx.message.channel.id
         new_tags = []
@@ -345,6 +444,20 @@ class Gelbooru(commands.Cog):
         # this command tracks how many times the tag came up in a result since the last time checked,
         # all done inside the SQL command in the DB manager
         self.bot.loop.call_later(86400, lambda: asyncio.ensure_future(self.monitor_tag_deltas()))
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload):
+
+        if payload.member == self.bot.user:
+            return  # ignore own reaction
+
+        if payload.emoji.name in self.awaited_super_users.keys():
+            if self.awaited_super_users[payload.emoji.name] == payload.member.id:
+                self.super_users[payload.member.id] = 0
+                self.awaited_super_users.pop(payload.emoji.name)
+                print("user can now continue using the fxn")
+        else:
+            print("unexpected emoji")
 
 
 def setup(bot):
