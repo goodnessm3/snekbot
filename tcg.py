@@ -35,11 +35,15 @@ dud_items = ["single dirty sock",
               "half a jar of salsa",
               ]
 
+serial_verifier = re.compile('''^[0-9]{5}$''')
+discord_id_verifier = re.compile('''^[0-9]{17,19}$''')  # can be 17 digits only if quite an old ID!
+
 RANDOM_MIN = 500
 RANDOM_MAX = 7200
 GACHA_LUCK_TIME = 180
 CRATE_COST_TIME = 120
 TRADE_TIMEOUT = 300
+DEFAULT_AUCTION_LENGTH = 600
 
 class Tcg(commands.Cog):
 
@@ -58,13 +62,163 @@ class Tcg(commands.Cog):
         self.waiting_for_response = {}  # players can only have one open trade at a time to avoid MAJOR headaches
         # message id:player
         self.offered_cards = []  # ANY card from ANYONE that is currently offered for trade, make sure unique
-
         self.trade_timeouts = {}  # mapping of mid:timer handle
+
+        self.auctioned_cards = defaultdict(lambda: [])
+        # a dict of serial number: [(price, bidder)], these tuples are used at end of auction
+        self.card_auctioners = {}  # card serial : discord ID, so we know who to pay
+        self.auction_times = {}  # serial: conclusion time
 
         self.bot.loop.call_later(10, lambda: asyncio.ensure_future(self.update_player_names()))
         self.bot.loop.call_later(12, lambda: asyncio.ensure_future(self.drop()))
         self.bot.loop.call_later(GACHA_LUCK_TIME, lambda: asyncio.ensure_future(self.decrement_counters()))
         self.bot.loop.call_later(CRATE_COST_TIME, lambda: asyncio.ensure_future(self.modulate_crate_cost()))
+
+    def make_auction_menu(self):
+
+        out = "The following cards are for sale:\n"
+        for k, v in self.auctioned_cards.items():
+            price = max([x[0] for x in v])
+            nm = self.bot.buxman.serial_to_name(k)
+            tm = int(self.auction_times[k] - time.time())
+            out += f"#{k} - {nm}, current high bid: {price}, time remaining: {tm} s\n"
+
+        pilimage = self.make_card_summary({"":list(self.auctioned_cards.keys())}, small=True)
+
+        save_name = str(int(time.time()))[-8:]  # unique enough
+        pilimage.save(f"/var/www/html/card_summaries/{save_name}.jpg")
+        #pilimage.save(f"C:\\s\\tcg\\{save_name}.jpg")
+
+        out += f"http://raibu.streams.moe/card_summaries/{save_name}.jpg"
+
+        return out
+
+    @commands.command()
+    async def auction(self, ctx, *args):
+
+        """args are card serial, cost, time in seconds if wanted else default to 600 secs"""
+
+        instructions = "Format of the command is snek auction [card serial] [min. price] [duration] "\
+                        "e.g. to sell card 00123 for a minimum price of 500 snekbux, with a timeout "\
+                        "of 2 minutes, type 'snek auction 00123 500 120'."
+
+        if not args:
+            await ctx.message.channel.send(self.make_auction_menu())
+            return
+
+        if not (len(args) == 2 or len(args) == 3):
+            await ctx.message.channel.send(instructions)
+            return
+        if not serial_verifier.match(args[0]):
+            await ctx.message.channel.send(instructions)
+            return
+        if not re.match('''^[0-9]{1,9}$''', args[1]):
+            await ctx.message.channel.send(instructions)
+            return
+        if len(args) == 2:
+            args = list(args)  # so we can append the default time
+            args.append(float(DEFAULT_AUCTION_LENGTH))  # add the FINISHING time of the auction
+        if not re.match('''^[0-9]{2,5}$''', args[2]):  # the duration in seconds
+            await ctx.message.channel.send(instructions)
+            return
+
+        uid = ctx.message.author.id
+        serial, price, duration = args
+        duration = float(duration)
+
+        if serial in self.offered_cards:
+            await ctx.message.channel.send("That card is already involved in an auction or trade")
+            return
+
+        if not self.bot.buxman.verify_ownership_single(serial, uid):
+            await ctx.message.channel.send("You don't appear to own that card.")
+            return
+
+        self.auctioned_cards[serial].append((int(price), ""))  # this is normally the price and the ID of the bidders
+        self.card_auctioners[serial] = ctx.message.author.id
+        self.offered_cards.append(serial)
+        self.auction_times[serial] = time.time() + duration
+        card_link = f"http://raibu.streams.moe/cards/{serial}.jpg"
+        await ctx.message.channel.send(f"{ctx.message.author.mention} is selling a card! Bidding starts at {price} "
+                                       f"snekbux. The auction will last for {duration} s. {card_link}")
+        print(self.auction_times)
+        print(self.auctioned_cards)
+        self.bot.loop.call_later(duration, lambda: asyncio.ensure_future(self.conclude_auction(serial)))
+        print(f"Scheduled completion of auction after {duration} of serial {serial}")
+
+    @commands.command()
+    async def bid(self, ctx, *args):
+
+        try:
+            serial, cost = args
+        except:
+            await ctx.message.channel.send(self.make_auction_menu())
+            return
+
+        if not serial_verifier.match(serial):
+            await ctx.message.channel.send("Problem with serial number - command is 'snek bid [card serial] [amount]'")
+            return
+        if not serial in self.auctioned_cards.keys():
+            await ctx.message.channel.send("That card is not up for auction!")
+            return
+        if not re.match('''[0-9]{1,8}''', cost):
+            await ctx.message.channel.send("The price must be an integer number!")
+            return
+
+        cost = int(cost)
+        funds = self.bot.buxman.get_bux(ctx.message.author.id)
+        if funds < cost:
+            await ctx.message.channel.send("You can't place a bid for more than your current snekbux balance.")
+            return
+
+        self.auctioned_cards[serial].append((cost, ctx.message.author.id))
+        card_name = self.bot.buxman.serial_to_name(serial)
+        tm = int(self.auction_times[serial] - time.time())
+
+        highbid = max([x[0] for x in self.auctioned_cards[serial]])
+
+        await ctx.message.channel.send(f"You bid {cost} snekbux on card #{serial}! ({card_name}). {tm} seconds remain."
+                                       f" The current high bid is {highbid} snekbux.")
+
+    async def conclude_auction(self, serial):
+
+        """Determine the high bidder, deduct the price paid and transfer the card"""
+
+        bidder_list = self.auctioned_cards.pop(serial)  # pop because we will not need it again
+        self.auction_times.pop(serial)
+        self.offered_cards.remove(serial)
+        payee = self.card_auctioners.pop(serial)
+
+        bidder_list.sort(key=lambda x: x[0])
+        bidder_list.reverse()  # so we have the big numbers first
+        card_name = self.bot.buxman.serial_to_name(serial)
+        card_link = f"http://raibu.streams.moe/cards/{serial}.jpg"
+        print("Bidder list is:")
+        print(bidder_list)
+        if len(bidder_list) == 1:
+            await self.chan.send(f"Nobody bid on {card_name}! {card_link}")
+            return
+        for x in bidder_list:
+            amount, bidder = x
+            if bidder == "":
+                return  # this should never actually happen should be captured by above
+            bidder_name = f"<@{bidder}>"
+            payee_name = f"<@{payee}>"
+            funds = self.bot.buxman.get_bux(bidder)
+            if funds < amount:
+                await self.chan.send(f"{bidder_name} bid for {card_name} but no longer has enough funds to pay, "
+                                     f"and is disqualified!")
+                continue
+            else:
+                # the winning bidder can actually pay
+                # TODO: actually pay the recipient!
+                self.bot.buxman.adjust_bux(bidder, -amount)
+                self.bot.buxman.adjust_bux(payee, amount)
+                self.bot.buxman.add_card(bidder, serial)
+                await self.chan.send(
+                    f"{bidder_name} bought {card_name} from {payee_name} for {amount} snekbux! {card_link}")
+                return
+        await self.chan.send("Nobody won the auction!")
 
     async def timeout_trade(self, mid, chan):
 
@@ -242,15 +396,19 @@ class Tcg(commands.Cog):
         save_name = str(int(time.time()))[-8:]  # unique enough
 
         pilimage.save(f"/var/www/html/card_summaries/{save_name}.jpg")
-        # pilimage.save(f"C:\\s\\tcg\\{uid}.jpg") for testing
+        #pilimage.save(f"C:\\s\\tcg\\{uid}.jpg")  # for testing
 
         await ctx.message.channel.send(f"http://raibu.streams.moe/card_summaries/{save_name}.jpg")
 
-    def make_card_summary(self, files):
+    def make_card_summary(self, files, small=False):
 
         """Expects a dictionary of series:files so they can be grouped appropriately"""
 
-        width = 3000
+        if small:
+            width = min(3000, len(files[""])*300)  # this dict is not keyed by series, just by empty string
+        else:
+            width = 3000
+
         height = 600 * self.calc_height(files)  # how many rows of 10?
         black = Image.new("RGB", (width, height), (0, 0, 0))
 
@@ -259,7 +417,7 @@ class Tcg(commands.Cog):
 
         for k, v in files.items():  # key is series, v is list of files
             for q in v:
-                #  image_path = f"C:\\s\\tcg\\cards\\{str(q).zfill(5)}.jpg"  for testing
+                #image_path = f"C:\\s\\tcg\\cards\\{str(q).zfill(5)}.jpg"  #  for testing
                 image_path = f"/var/www/html/cards/{q}.jpg"
                 im = Image.open(image_path)
                 black.paste(im, (x, y))
@@ -268,7 +426,10 @@ class Tcg(commands.Cog):
                     x = 0
                     y += 600
 
-        return black.resize((1000, ceil(height / 3)))
+        if width > 1000:
+            return black.resize((1000, ceil(height / 3)))
+        else:
+            return black
 
     def calc_height(self, files):
 
@@ -325,9 +486,6 @@ class Tcg(commands.Cog):
         if not args:
             await ctx.message.channel.send("go to http://raibu.streams.moe/snekstore/trade_setup to set up a trade.")
             return
-
-        serial_verifier = re.compile('''^[0-9]{5}$''')
-        discord_id_verifier = re.compile('''^[0-9]{17,19}$''')  # can be 17 digits only if quite an old ID!
 
         source_id = ctx.message.author.id
         dest_id = args[0][2:-1]

@@ -517,7 +517,6 @@ class Manager:
 
         """Return True only if all cards in serial list are owned either by 1 or 2"""
         query_tuple = f'''({",".join(serial_list)})'''
-        print(f'''SELECT DISTINCT(owner) FROM cards WHERE serial IN {query_tuple}''')
         self.cursor.execute(f'''SELECT DISTINCT(owner) FROM cards WHERE serial IN {query_tuple}''')
         res = [x[0] for x in self.cursor.fetchall()]
         print(res)
@@ -530,6 +529,26 @@ class Manager:
             return True
         else:
             return False
+
+    def verify_ownership_single(self, card, uid):
+
+        self.cursor.execute('''SELECT owner FROM cards WHERE serial = ?''', (int(card),))
+        res = self.cursor.fetchall()
+        print("result from owner chec")
+        print(res)
+        if not res:
+            return False
+        if int(res[0][0]) == uid:  # holy shit I have got to sort out typing and tuples for this damn code
+            return True
+        else:
+            return False
+
+    def serial_to_name(self, serial):
+
+        self.cursor.execute('''SELECT card_name FROM cards WHERE serial = ?''', (int(serial),))
+        res = self.cursor.fetchone()
+        if res:
+            return res[0]
 
     def execute_trade(self, serial_list):
 
