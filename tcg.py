@@ -288,6 +288,9 @@ class Tcg(commands.Cog):
 
         uid = payload.member.id
         card = self.bot.buxman.random_unowned_card()
+        if not card:
+            await self.chan.send("All cards have been claimed! Wait for pchem to burn some!")
+            return
         self.bot.buxman.add_card(uid, card)
 
         shutil.move(f"/home/rargh/cards/{card}.jpg", f"/var/www/html/cards/{card}.jpg")
@@ -459,6 +462,9 @@ class Tcg(commands.Cog):
             self.random_chances[uid] += 1  # only make chance harder if the player won
             uid = ctx.message.author.id
             card = self.bot.buxman.random_unowned_card()
+            if not card:
+                await ctx.message.channel.send("All cards have been claimed! Wait for pchem to burn some!")
+                return
             self.bot.buxman.add_card(uid, card)
             shutil.move(f"/home/rargh/cards/{card}.jpg", f"/var/www/html/cards/{card}.jpg")
             await ctx.message.channel.send(f'''{ctx.message.author.mention}, you bought a loot crate for {cost}'''
