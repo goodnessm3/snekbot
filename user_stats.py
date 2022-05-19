@@ -498,6 +498,8 @@ class Manager:
     def random_unowned_card(self):
 
         self.cursor.execute('''SELECT serial FROM cards WHERE owner IS NULL ORDER BY RANDOM() LIMIT 1''')
+        if not self.cursor.fetchone():
+            return
         serial = str(self.cursor.fetchone()[0]).zfill(5)  # convert serial number to padded string for file name use
         return serial
 

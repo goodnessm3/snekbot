@@ -84,13 +84,14 @@ class Tcg(commands.Cog):
             tm = int(self.auction_times[k] - time.time())
             out += f"#{k} - {nm}, current high bid: {price}, time remaining: {tm} s\n"
 
-        pilimage = self.make_card_summary({"":list(self.auctioned_cards.keys())}, small=True)
+        if len(self.auctioned_cards.keys()) > 0:
+            pilimage = self.make_card_summary({"":list(self.auctioned_cards.keys())}, small=True)
 
-        save_name = str(int(time.time()))[-8:]  # unique enough
-        pilimage.save(f"/var/www/html/card_summaries/{save_name}.jpg")
-        #pilimage.save(f"C:\\s\\tcg\\{save_name}.jpg")
+            save_name = str(int(time.time()))[-8:]  # unique enough
+            pilimage.save(f"/var/www/html/card_summaries/{save_name}.jpg")
+            #pilimage.save(f"C:\\s\\tcg\\{save_name}.jpg")
 
-        out += f"http://raibu.streams.moe/card_summaries/{save_name}.jpg"
+            out += f"http://raibu.streams.moe/card_summaries/{save_name}.jpg"
 
         return out
 
