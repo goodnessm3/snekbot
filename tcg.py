@@ -76,7 +76,8 @@ class Tcg(commands.Cog):
 
     def make_auction_menu(self):
 
-        out = "The following cards are for sale:\n"
+        out = "The following cards are for sale. To bid, type 'snek bid [card serial] [amount]. To auction your own " \
+              "cards, type 'snek auction [card serial] [minimum bid] [duration of auction in seconds].\n"
         for k, v in self.auctioned_cards.items():
             price = max([x[0] for x in v])
             nm = self.bot.buxman.serial_to_name(k)
