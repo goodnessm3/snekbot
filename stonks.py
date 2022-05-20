@@ -42,6 +42,7 @@ class Stonks(commands.Cog):
     @commands.command()
     async def buy(self, ctx, *args):
 
+        #TODO
         ########### put this in a decorator ##########
         uid = ctx.message.author.id
 
@@ -66,7 +67,7 @@ class Stonks(commands.Cog):
             return
 
         if cost < 0:
-            await ctx.message.channel.send("Can't buy a negative amount, nice try!")
+            await ctx.message.channel.send("You can't buy a negative amount, nice try!")
             return
         funds = self.bot.buxman.get_bux(ctx.message.author.id)
 
@@ -97,7 +98,7 @@ class Stonks(commands.Cog):
             return
 
         if cost < 0:
-            await ctx.message.channel.send("Can't sell a negative amount!")
+            await ctx.message.channel.send("You can't sell a negative amount!")
             return
 
         uid = str(ctx.message.author.id)
