@@ -166,7 +166,8 @@ class Gelbooru(commands.Cog):
             return  # no tags because the search gave 0 results
         tags = tag_list.split(" ")
         try:
-            await self.serv.add_tag(tags)
+            #await self.serv.add_tag(tags)
+            pass
         except:
             pass  # tag server not talking to us
         self.dbman.log_tags(tags)  # a record of how many times each tag came up
