@@ -8,8 +8,11 @@ from collections import defaultdict
 import clean_text as ct
 from Tree_Server import Tree_Server
 import aiohttp
+from PIL import Image, ImageFont, ImageDraw
+from io import BytesIO
+import discord
 
-HUMAN_CHECK_THRESHOLD = 5
+HUMAN_CHECK_THRESHOLD = 2
 
 
 class Gelbooru(commands.Cog):
@@ -38,6 +41,8 @@ class Gelbooru(commands.Cog):
         self.super_users = defaultdict(lambda:0)  # people who need to be rate limited
         self.awaited_super_users = {}  # emoji: user ID, need to get a react from this user
 
+        self.awaited_answers = {}  # uid:number, answers for mathematical captchas
+
         self.reaction_emojis = [
             ("\U00002705", "check mark"),
             ("\U0001F49A", "green heart"),
@@ -49,6 +54,7 @@ class Gelbooru(commands.Cog):
             ("\U0001F4CE", "paperclip"),
         ]
         self.expected_reacts = []  # add emojis here that snek is expecting to get
+        self.timed_out = []  # users who responded with the wrong emoji
 
         with open("tag_values.json", "r") as f:
             self.tag_values = json.load(f)
@@ -64,6 +70,11 @@ class Gelbooru(commands.Cog):
         self.bot.loop.create_task(self.purge_tag_hashes())
         self.bot.loop.create_task(self.monitor_tag_deltas())
         self.bot.loop.call_later(300, lambda: asyncio.ensure_future(self.decrement_superusers()))
+
+    async def forgive_user(self, uid):
+
+        self.timed_out.remove(uid)
+        print(f"un-timed-out user {uid}")
 
     def check_high_rate(self, uid):
 
@@ -165,29 +176,50 @@ class Gelbooru(commands.Cog):
             self.tag_hashes.append(hashed)
             self.dbman.distribute_dividend(tags)
 
+    async def test_captcha(self, ctx):
+
+        pic, answer = self.captcha_image()
+        byts = BytesIO()
+        pic.save(byts, format="png")
+        byts.seek(0)
+        await ctx.message.channel.send("Provide your answer with snek the_answer_to_the_captcha_is [answer]")
+        await ctx.message.channel.send(file=discord.File(byts, "captcha.png"))
+
+        self.awaited_answers[ctx.message.author.id] = answer
+
     async def captcha(self, chan, uid):
 
-        emojicode, emojiname = random.choice(self.reaction_emojis)
-        samp = []
-        while len(samp) < 5:
-            # we can't just use random.sample() because all must be unique
-            new = random.choice(self.reaction_emojis)
-            if new[0] == emojicode or new in samp:
-                continue
-            else:
-                samp.append(new)
-        others = [x[0] for x in samp]
-        mess = await chan.send(
-            f"It looks like you're enjoying this feature a lot! Click the {emojiname} to continue using it!")
-        self.awaited_super_users[emojicode] = uid
-        others.append(emojicode)
-        random.shuffle(others)
-        print(samp)
-        await asyncio.sleep(0.5)
-        for x in others:
+        if random.randint(0,10) < 4:
+            pic, answer = self.captcha_image()
+            byts = BytesIO()
+            pic.save(byts, format="png")
+            byts.seek(0)
+            await chan.send("Provide your answer with snek the_answer_to_the_captcha_is [answer]")
+            await chan.send(file=discord.File(byts, "captcha.png"))
+            self.awaited_answers[uid] = answer
+
+        else:
+            emojicode, emojiname = random.choice(self.reaction_emojis)
+            samp = []
+            while len(samp) < 5:
+                # we can't just use random.sample() because all must be unique
+                new = random.choice(self.reaction_emojis)
+                if new[0] == emojicode or new in samp:
+                    continue
+                else:
+                    samp.append(new)
+            others = [x[0] for x in samp]
+            mess = await chan.send(
+                f"It looks like you're enjoying this feature a lot! Click the {emojiname} to continue using it!")
+            self.awaited_super_users[emojicode] = uid
+            others.append(emojicode)
+            random.shuffle(others)
+            print(samp)
             await asyncio.sleep(0.5)
-            print(f"adding rxn")
-            await mess.add_reaction(x)
+            for x in others:
+                await asyncio.sleep(0.5)
+                print(f"adding rxn")
+                await mess.add_reaction(x)
 
     '''
     @commands.command()
@@ -213,6 +245,13 @@ class Gelbooru(commands.Cog):
 
         ########### put this in a decorator ##########
         uid = ctx.message.author.id
+
+        if uid in self.timed_out:
+            return
+
+        if uid in self.awaited_answers.keys():
+            return
+
         if self.check_high_rate(uid):
             if not uid in self.awaited_super_users.values():
                 await self.captcha(ctx.message.channel, uid)
@@ -270,6 +309,13 @@ class Gelbooru(commands.Cog):
 
         ########### put this in a decorator ##########
         uid = ctx.message.author.id
+
+        if uid in self.timed_out:
+            return
+
+        if uid in self.awaited_answers.keys():
+            return
+
         if self.check_high_rate(uid):
             if not uid in self.awaited_super_users.values():
                 await self.captcha(ctx.message.channel, uid)
@@ -304,7 +350,6 @@ class Gelbooru(commands.Cog):
 
         self.recent_image_user = ctx.message.author
         await self.add_tags(ctx)
-
 
     async def myget(self, *args, limit=False, offset=0):
 
@@ -371,8 +416,6 @@ class Gelbooru(commands.Cog):
 
     async def purge_tag_hashes(self):
 
-        #print(self.tag_hashes)
-        #print("purging tag hashes")
         self.tag_hashes = []
         self.bot.loop.call_later(1000000, lambda: asyncio.ensure_future(self.purge_tag_hashes()))
         # 11.5 days = 1000000 seconds
@@ -445,6 +488,21 @@ class Gelbooru(commands.Cog):
         # all done inside the SQL command in the DB manager
         self.bot.loop.call_later(86400, lambda: asyncio.ensure_future(self.monitor_tag_deltas()))
 
+    @commands.command()
+    @commands.cooldown(2, 1800, type=commands.BucketType.user)
+    async def the_answer_to_the_captcha_is(self, ctx, ans):
+
+        try:
+            wanted_answer = self.awaited_answers[ctx.message.author.id]
+        except KeyError:
+            return
+        if str(wanted_answer) == str(ans):
+            await ctx.message.channel.send("OK, you can continue using this function.")
+            self.awaited_answers.pop(ctx.message.author.id)
+            self.super_users[ctx.message.author.id] = 0
+        else:
+            await ctx.message.channel.send("Wrong answer!")
+
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
 
@@ -457,7 +515,28 @@ class Gelbooru(commands.Cog):
                 self.awaited_super_users.pop(payload.emoji.name)
                 print("user can now continue using the fxn")
         else:
-            print("unexpected emoji")
+            if payload.member.id in self.awaited_super_users.values():  # right user, wrong emoji
+                chan = self.bot.get_channel(payload.channel_id)
+                await chan.send(f"<@{payload.member.id}>, You reacted with the wrong emoji "
+                                f"and have been timed out for a random amount of time (30 minutes - 2 hours)!")
+                self.timed_out.append(payload.member.id)
+                timeout = random.randint(1800, 7200)
+                self.bot.loop.call_later(timeout, lambda: asyncio.ensure_future(self.forgive_user(payload.member.id)))
+
+    def captcha_image(self):
+
+        num1 = random.randint(1, 10000)
+        num2 = random.randint(1, 10000)
+        text = f"{num1} x {num2}"
+
+        font = ImageFont.truetype("arial.ttf", 20)
+        image_width = font.getlength(text)
+        white = Image.new("RGBA", (int(image_width) + 3, 24), (220, 100, 100))
+        ctx = ImageDraw.Draw(white)  # drawing context to write text
+        ctx.text((2, 2), text, font=font, fill=(120, 120, 90))
+
+        return white, num1 * num2
+
 
 
 def setup(bot):

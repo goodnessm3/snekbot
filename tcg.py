@@ -3,7 +3,7 @@ import random
 import asyncio
 from collections import defaultdict
 from math import ceil
-from PIL import Image
+from PIL import Image, ImageFont, ImageDraw
 import shutil
 import os
 import time
@@ -213,7 +213,6 @@ class Tcg(commands.Cog):
                 continue
             else:
                 # the winning bidder can actually pay
-                # TODO: actually pay the recipient!
                 self.bot.buxman.adjust_bux(bidder, -amount)
                 self.bot.buxman.adjust_bux(payee, amount)
                 self.bot.buxman.add_card(bidder, serial)
