@@ -270,7 +270,9 @@ class Gelbooru(commands.Cog):
                 tagpool = tagpool.split(" ")
             candidates = []
             try:
-                candidates.append(await self.serv.get_random_tag())
+                #  candidates.append(await self.serv.get_random_tag())
+                #  temp disabled on a day when the tag server wasn't working
+                candidates = random.sample(tagpool, min(3, len(tagpool)))
             except:
                 candidates = random.sample(tagpool, min(3, len(tagpool)))
             out += "I searched for: {}".format(", ".join(candidates))
