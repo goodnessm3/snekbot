@@ -12,7 +12,7 @@ from PIL import Image, ImageFont, ImageDraw
 from io import BytesIO
 import discord
 
-HUMAN_CHECK_THRESHOLD = 2
+HUMAN_CHECK_THRESHOLD = 4
 
 
 class Gelbooru(commands.Cog):
@@ -59,13 +59,11 @@ class Gelbooru(commands.Cog):
         with open("tag_values.json", "r") as f:
             self.tag_values = json.load(f)
 
-        '''
         mons = self.dbman.get_all_monitored()
         for x in mons:
             tag, cid = x
             self.bot.loop.create_task(self.check_monitored_tag(tag, cid))
             print("scheduled checking of tag {}".format(tag))
-        '''#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         self.bot.loop.create_task(self.purge_tag_hashes())
         self.bot.loop.create_task(self.monitor_tag_deltas())
@@ -75,6 +73,10 @@ class Gelbooru(commands.Cog):
 
         self.timed_out.remove(uid)
         print(f"un-timed-out user {uid}")
+
+    async def forget_maths_captcha(self, uid):
+
+        self.awaited_answers.pop(uid)
 
     def check_high_rate(self, uid):
 
@@ -190,14 +192,17 @@ class Gelbooru(commands.Cog):
 
     async def captcha(self, chan, uid):
 
-        if random.randint(0,10) < 4:
+        if random.randint(0, 10) < 4:
             pic, answer = self.captcha_image()
             byts = BytesIO()
             pic.save(byts, format="png")
             byts.seek(0)
-            await chan.send("Provide your answer with snek the_answer_to_the_captcha_is [answer]")
+            await chan.send("It looks like you're enjoying this feature a lot! Provide your answer with snek "
+                            "the_answer_to_the_captcha_is [answer] to continue using this feature!")
             await chan.send(file=discord.File(byts, "captcha.png"))
             self.awaited_answers[uid] = answer
+            delay = random.randint(1800, 7200)
+            self.bot.loop.call_later(delay, lambda: asyncio.ensure_future(self.forget_maths_captcha(uid)))
 
         else:
             emojicode, emojiname = random.choice(self.reaction_emojis)
