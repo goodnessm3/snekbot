@@ -588,10 +588,19 @@ class Manager:
 
     def card_search(self, astr):
 
-        search_qry = f'''%{astr}%'''
-        print(search_qry)
-        self.cursor.execute('''SELECT screen_name, card_name, series FROM cards 
-                                INNER JOIN names ON 
-                                names.uid = cards.owner WHERE card_name LIKE ? OR series LIKE ?''',
-                            (search_qry, search_qry))
+        words = astr.split(" ")
+        part = '''(card_name LIKE ? OR series LIKE ?)'''
+        start = '''SELECT serial, screen_name, card_name, series FROM cards 
+                    INNER JOIN names ON 
+                    names.uid = cards.owner WHERE'''
+
+        search_qry = []
+        for x in words:
+            start += part  # add another clause
+            start += '''AND'''
+            search_qry.extend([f'''%{x}%''', f'''%{x}%'''])  # stuff to sub into SQL statement
+        search_qry = tuple(search_qry)
+
+        start = start[:-3]  # trim final "AND"
+        self.cursor.execute(start, search_qry)
         return self.cursor.fetchall()

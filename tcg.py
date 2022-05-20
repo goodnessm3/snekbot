@@ -204,6 +204,7 @@ class Tcg(commands.Cog):
             amount, bidder = x
             if bidder == "":
                 return  # this should never actually happen should be captured by above
+                # actually it CAN happen, if the only submitted bids are LOWER than the reserve price
             bidder_name = f"<@{bidder}>"
             payee_name = f"<@{payee}>"
             funds = self.bot.buxman.get_bux(bidder)
@@ -612,13 +613,16 @@ class Tcg(commands.Cog):
         qry = " ".join(qry)  # either search for one thing or they want a thing with a space in it
         res = self.bot.buxman.card_search(qry)
         restable = PrettyTable()
-        restable.field_names = ["Card owner", "Character", "Series"]
+        restable.field_names = ["Serial", "Card owner", "Character", "Series"]
         for q in res[:10]:
-            restable.add_row(q)
-        await ctx.message.channel.send(f"```{restable}```")
+            qq = list(q)
+            qq[0] = str(qq[0]).zfill(5)
+            restable.add_row(qq)
 
         if len(res) > 10:
-            await ctx.message.channel.send(f"Plus {len(res)-10} results omitted, maybe refine your search.")
+            await ctx.message.channel.send(f"```{restable}\nPlus {len(res)-10} results omitted```")
+        else:
+            await ctx.message.channel.send(f"```{restable}```")
 
 
 def setup(bot):
