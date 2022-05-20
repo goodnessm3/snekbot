@@ -527,6 +527,9 @@ class Gelbooru(commands.Cog):
                 chan = self.bot.get_channel(payload.channel_id)
                 await chan.send(f"<@{payload.member.id}>, You reacted with the wrong emoji "
                                 f"and have been timed out for a random amount of time (30 minutes - 2 hours)!")
+                self.awaited_super_users.pop(payload.emoji.name)
+                # stop listening or we'll get this result for EVERY react the user adds
+                self.super_users[payload.member.id] = 0
                 self.timed_out.append(payload.member.id)
                 timeout = random.randint(1800, 7200)
                 self.bot.loop.call_later(timeout, lambda: asyncio.ensure_future(self.forgive_user(payload.member.id)))
