@@ -168,8 +168,7 @@ class Gelbooru(commands.Cog):
             return  # no tags because the search gave 0 results
         tags = tag_list.split(" ")
         try:
-            #await self.serv.add_tag(tags)
-            pass
+            await self.serv.add_tag(tags)
         except:
             pass  # tag server not talking to us
         self.dbman.log_tags(tags)  # a record of how many times each tag came up
@@ -276,9 +275,7 @@ class Gelbooru(commands.Cog):
                 tagpool = tagpool.split(" ")
             candidates = []
             try:
-                #  candidates.append(await self.serv.get_random_tag())
-                #  temp disabled on a day when the tag server wasn't working
-                candidates = random.sample(tagpool, min(3, len(tagpool)))
+                candidates.append(await self.serv.get_random_tag())
             except:
                 candidates = random.sample(tagpool, min(3, len(tagpool)))
             out += "I searched for: {}".format(", ".join(candidates))
