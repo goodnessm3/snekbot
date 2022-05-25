@@ -38,8 +38,8 @@ dud_items = ["single dirty sock",
 serial_verifier = re.compile('''^[0-9]{5}$''')
 discord_id_verifier = re.compile('''^[0-9]{17,19}$''')  # can be 17 digits only if quite an old ID!
 
-RANDOM_MIN = 500
-RANDOM_MAX = 7200
+RANDOM_MIN = 7200
+RANDOM_MAX = 86400
 GACHA_LUCK_TIME = 180
 CRATE_COST_TIME = 120
 TRADE_TIMEOUT = 300
@@ -623,6 +623,14 @@ class Tcg(commands.Cog):
             await ctx.message.channel.send(f"```{restable}\nPlus {len(res)-10} results omitted```")
         else:
             await ctx.message.channel.send(f"```{restable}```")
+
+    @commands.command()
+    async def burn(self, ctx, *args):
+
+        for x in args:
+            if not serial_verifier.match(x):
+                await ctx.message.channel.send("Type 'snek burn' followed by a list of 5-digit card serial numbers.")
+                return
 
 
 def setup(bot):
