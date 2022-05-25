@@ -21,7 +21,7 @@ class Gelbooru(commands.Cog):
 
         self.bot = bot
         #self.sesh = bot.sesh  # aiohttp session for web responses
-        self.url = "https://gelbooru.com/index.php?page=dapi&s=post&q=index&pid={}&tags=rating:safe+{}"
+        self.url = "https://gelbooru.com/index.php?page=dapi&s=post&q=index&pid={}&tags=-rating:explicit+{}"
         self.seen = []
         self.last_tags = {}  # the last tags someone asked for, use for repeat searches
         self.cached_xml = None  # for "again" queries, don't need to ask the server again as we already have 100 results
@@ -274,7 +274,7 @@ class Gelbooru(commands.Cog):
             else:
                 tagpool = tagpool.split(" ")
             candidates = []
-            try:
+            try:  # todo add async with timeout
                 candidates.append(await self.serv.get_random_tag())
             except:
                 candidates = random.sample(tagpool, min(3, len(tagpool)))
