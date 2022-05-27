@@ -44,6 +44,9 @@ bot.cbchannels = settings["cleverbot_channels"]
 with open("snektext.json", "r") as f:
     bot.text = json.load(f)
 
+with open("watch_list.json", "r") as f:
+    bot.watch_list = json.load(f)
+
 
 def is_owner(ctx):
     return ctx.message.author.id == bot.settings["owner_id"]

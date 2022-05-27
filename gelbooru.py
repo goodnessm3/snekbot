@@ -257,7 +257,7 @@ class Gelbooru(commands.Cog):
         if uid in self.awaited_answers.keys():
             return
 
-        if self.check_high_rate(uid):
+        if self.check_high_rate(uid) and uid in self.bot.watch_list:
             if not uid in self.awaited_super_users.values():
                 await self.captcha(ctx.message.channel, uid)
             return
@@ -539,9 +539,15 @@ class Gelbooru(commands.Cog):
 
         font = ImageFont.truetype("arial.ttf", 20)
         image_width = font.getlength(text)
-        white = Image.new("RGBA", (int(image_width) + 3, 24), (220, 100, 100))
+        white = Image.new("RGBA", (int(image_width) + 3, 24), (220, 220, 220))
         ctx = ImageDraw.Draw(white)  # drawing context to write text
-        ctx.text((2, 2), text, font=font, fill=(120, 120, 90))
+
+        for _ in range(9):
+            coord1 = (random.randint(0, int(image_width)), 0)
+            coord2 = (random.randint(0, int(image_width)), 24)
+            ctx.line((coord1, coord2), (10, 10, 10))
+
+        ctx.text((2, 2), text, font=font, fill=(10, 10, 10))
 
         return white, num1 * num2
 

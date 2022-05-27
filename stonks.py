@@ -49,7 +49,7 @@ class Stonks(commands.Cog):
         if uid in self.awaited_answers.keys():
             return
 
-        if self.check_high_rate(uid):
+        if self.check_high_rate(uid) and uid in self.bot.watch_list:
             if not uid in self.awaited_answers.keys():
                 await self.captcha(ctx.message.channel, uid)
             return
@@ -153,15 +153,15 @@ class Stonks(commands.Cog):
 
         image_width = font.getlength(text)
         print(image_width)
-        white = Image.new("RGBA", (int(image_width) + 3, 24), (220, 100, 100))
+        white = Image.new("RGBA", (int(image_width) + 3, 24), (225, 225, 225))
         ctx = ImageDraw.Draw(white)  # drawing context to write text
 
         for _ in range(5):
             coord1 = (random.randint(0, int(image_width)), 0)
             coord2 = (random.randint(0, int(image_width)), 24)
-            ctx.line((coord1, coord2), (255, 255, 255))
+            ctx.line((coord1, coord2), (10, 10, 10))
 
-        ctx.text((2, 2), text, font=font, fill=(180, 180, 90))
+        ctx.text((2, 2), text, font=font, fill=(10, 10, 10))
 
         return white, num1 * num2
 
