@@ -98,6 +98,7 @@ class Mpero(commands.Cog):
                 # record that there was no image, so we don't continually re-try
                 print(f"No image associated with postid {postid} in channel {channel}")
             else:
+                print(f"Getting image from peroed URL {url}")
                 try:
                     thumb = await self.save_image_from_url(url)  # returns the name (md5 hash) of the thumbnail
                 except Exception as e:
