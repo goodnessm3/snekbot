@@ -314,10 +314,14 @@ class Manager:
         self.cursor.execute('''SELECT thumb, image_url FROM most_peroed WHERE count > ?''', (threshold,))
         return self.cursor.fetchall()
 
-    def add_image_link(self, postid, channel, lnk, thumb):
+    def add_image_link(self, postid, channel, lnk, thumb, failed=False):
 
-        self.cursor.execute('''UPDATE most_peroed SET image_url = ?, thumb = ? WHERE postid = ? AND channel = ?''',
-                            (lnk, thumb, postid, channel))
+        if failed:  # a value of 0 means we have visited this link before but it didn't resolve to a downloadable image
+            self.cursor.execute('''UPDATE most_peroed SET image_url = 0, thumb = 0 WHERE postid = ? AND channel = ?''',
+                                (postid, channel))
+        else:
+            self.cursor.execute('''UPDATE most_peroed SET image_url = ?, thumb = ? WHERE postid = ? AND channel = ?''',
+                                (lnk, thumb, postid, channel))
         self.db.commit()
 
     def mark_as_downloaded(self, channelid, postid):

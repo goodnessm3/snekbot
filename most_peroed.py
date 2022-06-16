@@ -94,15 +94,18 @@ class Mpero(commands.Cog):
             postid, channel = tup
             url = await self.get_image_url(postid, channel)
             if not url:  # not all peroed posts will have an image, so don't try to download one
-                continue
-            try:
-                thumb = await self.save_image_from_url(url)  # returns the name (md5 hash) of the thumbnail
-            except Exception as e:
-                print(e)  # sometimes PIL won't be able to read the URL for whatever reason, e.g. it's actually a webm
-                continue
+                self.bot.buxman.add_image_link(postid, channel, url, None, failed=True)
+                # record that there was no image, so we don't continually re-try
+                print(f"No image associated with postid {postid} in channel {channel}")
+            else:
+                try:
+                    thumb = await self.save_image_from_url(url)  # returns the name (md5 hash) of the thumbnail
+                except Exception as e:
+                    print(e)  # sometimes PIL won't be able to read the URL for whatever reason, e.g. it's a webm
+                    continue
 
-            self.bot.buxman.add_image_link(postid, channel, url, thumb)
-            print(f"Added a link to best of: {url}")
+                self.bot.buxman.add_image_link(postid, channel, url, thumb)
+                print(f"Added a link to best of: {url}")
 
         print("finished updating links for most peroed posts")
         self.bot.loop.call_later(432000, lambda: asyncio.ensure_future(self.periodic_link_update()))
