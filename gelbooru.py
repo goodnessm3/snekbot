@@ -462,7 +462,7 @@ class Gelbooru(commands.Cog):
             chan = self.bot.get_channel(cid)
             url = posts[0].find("file_url").text
             self.last_search[cid] = tags
-            await chan.send("I found a new {} image! {}".format(tag, url))
+            self.last_pic = await chan.send("I found a new {} image! {}".format(tag, url))
 
         next_call = max(3600, base_time + random.randint(-6000, 6000))
         # jitter timing to stop all gelbooru requests being simultaneous
