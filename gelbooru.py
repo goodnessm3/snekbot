@@ -28,6 +28,7 @@ class Gelbooru(commands.Cog):
         self.last_search = {}  # the tags of the last image uploaded, a string per channel {channel id:str}
         self.last_count = 0  # once we know how many pages were returned, we can look in other pages for "again" search
         self.last_scored = defaultdict(lambda: None)  # stop multiple valuations of the same image, per channel
+        self.last_pic = None  # a reference to the last picture message so it can be deleted if lewd
         self.fallback_tags = ["large_breasts", "huge_breasts", "wide_hips"]
         self.dbman = bot.buxman  # interface to the SQL database
         self.monitoring_times = defaultdict(lambda: 25000)  # {tag:int}
@@ -73,6 +74,14 @@ class Gelbooru(commands.Cog):
 
         self.timed_out.remove(uid)
         print(f"un-timed-out user {uid}")
+
+    @commands.command()
+    async def delet(self, ctx):
+
+        if self.last_pic:
+            await self.last_pic.delete()
+            self.last_pic = None
+
 
     async def forget_maths_captcha(self, uid):
 
@@ -293,7 +302,7 @@ class Gelbooru(commands.Cog):
         self.recent_image_user = ctx.message.author
         out += "\n"
         out += res
-        await ctx.message.channel.send(out)
+        self.last_pic = await ctx.message.channel.send(out)
         await self.add_tags(ctx)
 
     async def get_image(self, *args, **kwargs):
@@ -321,7 +330,7 @@ class Gelbooru(commands.Cog):
         if uid in self.awaited_answers.keys():
             return
 
-        if self.check_high_rate(uid):
+        if self.check_high_rate(uid) and uid in self.bot.watch_list:
             if not uid in self.awaited_super_users.values():
                 await self.captcha(ctx.message.channel, uid)
             return
@@ -347,7 +356,7 @@ class Gelbooru(commands.Cog):
 
         res, tags = await self.get_image(*self.last_tags[cid], offset=offset)
         self.last_search[cid] = tags
-        await ctx.message.channel.send(res)
+        self.last_pic = await ctx.message.channel.send(res)
         self.dbman.log_search(ctx.message.author.id, self.last_tags[cid])
 
         # TODO: this tag adding code is duplicated in the "gelbooru" command, probably better if
