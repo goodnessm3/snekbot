@@ -486,7 +486,8 @@ class Tcg(commands.Cog):
                 await ctx.message.channel.send("All cards have been claimed! Wait for pchem to burn some!")
                 return
             self.bot.buxman.add_card(uid, card)
-            shutil.move(f"/home/rargh/cards/{card}.jpg", f"/var/www/html/cards/{card}.jpg")
+            if not os.path.exists(f"/var/www/html/cards/{card}.jpg"):  # it's a new card and needs to be relocated
+                shutil.move(f"/home/rargh/cards/{card}.jpg", f"/var/www/html/cards/{card}.jpg")
             await ctx.message.channel.send(f'''{ctx.message.author.mention}, you bought a loot crate for {cost}'''
                                             f''' snekbux and it contained: http://raibu.streams.moe/cards/{card}.jpg''')
         else:
