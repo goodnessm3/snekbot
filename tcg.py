@@ -440,8 +440,8 @@ class Tcg(commands.Cog):
 
         for k, v in files.items():  # key is series, v is list of files
             for q in v:
-                image_path = f"C:\\s\\tcg\\cards\\{str(q).zfill(5)}.jpg"  #  for testing
-                #!!!!image_path = f"/var/www/html/cards/{q}.jpg"
+                #image_path = f"C:\\s\\tcg\\cards\\{str(q).zfill(5)}.jpg"  #  for testing
+                image_path = f"/var/www/html/cards/{q}.jpg"
                 im = Image.open(image_path)
                 black.paste(im, (x, y))
                 x += 300
@@ -662,7 +662,7 @@ class Tcg(commands.Cog):
         print(dict_for_layout)
         pict = self.make_card_summary(dict_for_layout)
         save_name = str(int(time.time()))[-8:]  # unique enough
-        #!!!pict.save(f"/var/www/html/card_summaries/{save_name}.jpg")
+        pict.save(f"/var/www/html/card_summaries/{save_name}.jpg")
         picturl = f"http://raibu.streams.moe/card_summaries/{save_name}.jpg"
 
         reason = random.choice(muon_uses)
