@@ -313,8 +313,9 @@ class Tcg(commands.Cog):
             return
         self.bot.buxman.add_card(uid, card)
 
-        shutil.move(f"/home/rargh/cards/{card}.jpg", f"/var/www/html/cards/{card}.jpg")
-        # move from card repository into somewhere they can actually be served from
+        if not os.path.exists(f"/var/www/html/cards/{card}.jpg"):
+            shutil.move(f"/home/rargh/cards/{card}.jpg", f"/var/www/html/cards/{card}.jpg")
+            # move from card repository into somewhere they can actually be served from
 
         await channel.send(f"{payload.member.mention}, claimed the loot crate! It contained this card. Type 'snek cards'"
                                 f"to see all your cards. http://raibu.streams.moe/cards/{card}.jpg")
