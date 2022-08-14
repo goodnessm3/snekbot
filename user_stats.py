@@ -98,6 +98,18 @@ class Manager:
 
         self.db.commit()
 
+    def adjust_muon(self, uid, amt):
+
+        self.cursor.execute('''SELECT * FROM stats WHERE uid = ?''', (uid,))
+        res = self.cursor.fetchone()  # check if user already existed
+        if not res:  # we need to add a new entry for them
+            self.cursor.execute('''insert into stats (uid, bux) VALUES (?, ?)''', (uid, amt))
+        else:
+            self.cursor.execute('''update stats set muon = MAX(0, muon + ?) where uid = ?''', (amt, uid))
+            # make sure it doesn't go negative
+
+        self.db.commit()
+
     def add_reminder(self, uid, message, channel_id, delay):
 
         delaystr = f"+{delay} seconds"
@@ -494,6 +506,11 @@ class Manager:
         self.cursor.execute('''UPDATE cards SET owner = ? WHERE serial = ?''', (uid, card))
         self.db.commit()
 
+    def remove_card(self, card):
+
+        self.cursor.execute('''UPDATE cards SET owner = NULL WHERE serial = ?''', (card,))
+        self.db.commit()
+
     def get_cards(self, uid):
 
         self.cursor.execute('''SELECT serial, series FROM cards WHERE owner = ?''', (uid,))
@@ -520,7 +537,7 @@ class Manager:
             self.cursor.execute('''INSERT INTO names (uid, screen_name) VALUES (?, ?)''', (k ,v))
         self.db.commit()
 
-    def verify_ownership(self, serial_list, owner1, owner2):
+    def verify_ownership(self, serial_list, owner1, owner2=None):
 
         """Return True only if all cards in serial list are owned either by 1 or 2"""
         query_tuple = f'''({",".join(serial_list)})'''
@@ -528,12 +545,15 @@ class Manager:
         res = [x[0] for x in self.cursor.fetchall()]
         print(res)
         owner1 = int(owner1)
-        owner2 = int(owner2)
+        if owner2:
+            owner2 = int(owner2)
 
         if owner1 == owner2:
             return False  # could have been devious
         if owner1 in res and owner2 in res and len(res) == 2:
             return True
+        if not owner2 and owner1 == res[0]:
+            return True  # checking a single user's ownership
         else:
             return False
 

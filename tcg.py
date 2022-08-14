@@ -34,6 +34,24 @@ dud_items = ["single dirty sock",
               "a urinal cake",
               "half a jar of salsa",
               ]
+muon_uses = ["improve your chances for opening loot crates",
+             "purchase additional loot crates (coming soon)",
+             "use snek commands more often",
+             "gain additional muon",
+             "unlock secret snek functions",
+             "enhance your card trades",
+             "gain a bonus to damage",
+             "diversify your portfolio",
+             "access the secret snek channel",
+             "impress girls",
+             "gain additional loot crate chances",
+             "augment loot crate probability",
+             "change loot crate distribution",
+             "gain additional snekbux",
+             "buy items in the premium store",
+             "unlock season passes",
+             "access exclusive DLC",
+             "access exclusive features"]
 
 serial_verifier = re.compile('''^[0-9]{5}$''')
 discord_id_verifier = re.compile('''^[0-9]{17,19}$''')  # can be 17 digits only if quite an old ID!
@@ -422,8 +440,8 @@ class Tcg(commands.Cog):
 
         for k, v in files.items():  # key is series, v is list of files
             for q in v:
-                #image_path = f"C:\\s\\tcg\\cards\\{str(q).zfill(5)}.jpg"  #  for testing
-                image_path = f"/var/www/html/cards/{q}.jpg"
+                image_path = f"C:\\s\\tcg\\cards\\{str(q).zfill(5)}.jpg"  #  for testing
+                #!!!!image_path = f"/var/www/html/cards/{q}.jpg"
                 im = Image.open(image_path)
                 black.paste(im, (x, y))
                 x += 300
@@ -627,10 +645,36 @@ class Tcg(commands.Cog):
     @commands.command()
     async def burn(self, ctx, *args):
 
+        uid = ctx.message.author.id
+
+        print(args)
+
         for x in args:
             if not serial_verifier.match(x):
                 await ctx.message.channel.send("Type 'snek burn' followed by a list of 5-digit card serial numbers.")
                 return
+
+        if not self.bot.buxman.verify_ownership(args, uid):
+            await ctx.message.channel.send("You can only burn your own cards, doofus!")
+            return
+
+        dict_for_layout = {"blank": args}
+        print(dict_for_layout)
+        pict = self.make_card_summary(dict_for_layout)
+        save_name = str(int(time.time()))[-8:]  # unique enough
+        #!!!pict.save(f"/var/www/html/card_summaries/{save_name}.jpg")
+        picturl = f"http://raibu.streams.moe/card_summaries/{save_name}.jpg"
+
+        reason = random.choice(muon_uses)
+        mu = len(set(args)) * 12  # set to stop people being cheeky and claiming multiple times
+        self.bot.buxman.adjust_muon(ctx.message.author.id, mu)
+        for q in args:
+            self.bot.buxman.remove_card(q)
+
+        msg = f"{ctx.message.author.mention}, you burned these cards, returning them to the pool! You have gained {mu}" \
+              f" muon. Muon can be used to {reason}! {picturl}"
+
+        await ctx.message.channel.send(msg)
 
 
 def setup(bot):
