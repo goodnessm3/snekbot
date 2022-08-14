@@ -644,7 +644,7 @@ class Tcg(commands.Cog):
         else:
             await ctx.message.channel.send(f"```{restable}```")
 
-        await ctx.message.channel.send("Also go to http://raibu.streams.moe/card_search to more easily view cards!"
+        await ctx.message.channel.send("Also go to http://raibu.streams.moe/card_search to more easily view cards!")
 
     @commands.command()
     async def burn(self, ctx, *args):
