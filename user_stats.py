@@ -41,13 +41,26 @@ class Manager:
         restuple = self.cursor.fetchone()
         if restuple is None:  # User has no entry in stats. Make a new one
             self.cursor.execute('''
-            insert into stats (uid, bux, level) values (?, 0, 0)
+            insert into stats (uid, bux, level, muon) values (?, 0, 0, 0)
             ''', (str(uid),))
             # the database expects a string, not an int, for the uid
             # todo: why?
             return 0  # we know this is the right value because we just put it in the db
         
         return restuple[0]  # if the user just wants one value, return a value rather than tuple
+
+    def get_muon(self, uid):
+
+        self.cursor.execute('''select muon from stats where uid = ?''', (uid,))
+
+        restuple = self.cursor.fetchone()
+        if restuple is None:  # User has no entry in stats. Make a new one
+            self.cursor.execute('''
+                    insert into stats (uid, bux, level, muon) values (?, 0, 0, 0)
+                    ''', (str(uid),))
+            return 0
+
+        return restuple[0]
 
     def get_stats(self, uid, *args):
 

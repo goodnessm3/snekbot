@@ -680,6 +680,20 @@ class Tcg(commands.Cog):
 
         await ctx.message.channel.send(msg)
 
+    @commands.command()
+    async def muon(self, ctx):
+
+        uid = ctx.message.author.id
+        mu = self.bot.buxman.get_muon(uid)
+
+        await ctx.message.channel.send(f"{ctx.message.author.mention}, you have {mu} muon. Type snek muon_store to"
+                                       f" access muon functions!")
+
+    @commands.command()
+    async def muon_store(self, ctx):
+
+        await ctx.message.channel.send("Feature coming soon:tm:")
+
 
 def setup(bot):
 
