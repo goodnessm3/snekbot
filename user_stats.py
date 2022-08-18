@@ -612,13 +612,24 @@ class Manager:
         query_tuple = f'''({",".join(serial_list)})'''
         self.cursor.execute(f'''SELECT DISTINCT(owner) FROM cards WHERE serial IN {query_tuple}''')
         res = [x[0] for x in self.cursor.fetchall()]
-        a, b = res
+        if not res:
+            raise KeyError("Serial does not exist")
+        if len(res) == 2:
+            a, b = res
+        elif len(res) == 1:
+            a = res[0]
+            b = None
+
         print(f"Distctinct owners are {a} and {b}")
         self.cursor.execute(f'''SELECT serial FROM cards WHERE serial IN {query_tuple} AND owner = ?''', (a, ))
         a_cards = [x[0] for x in self.cursor.fetchall()]
         print("A's cards", a_cards)
-        self.cursor.execute(f'''SELECT serial FROM cards WHERE serial IN {query_tuple} AND owner = ?''', (b,))
-        b_cards = [x[0] for x in self.cursor.fetchall()]
+        if b:
+            self.cursor.execute(f'''SELECT serial FROM cards WHERE serial IN {query_tuple} AND owner = ?''', (b,))
+            b_cards = [x[0] for x in self.cursor.fetchall()]
+        else:
+            b_cards = []
+
         print("B's cards", b_cards)
 
         return a, b, a_cards, b_cards

@@ -51,7 +51,8 @@ muon_uses = ["improve your chances for opening loot crates",
              "buy items in the premium store",
              "unlock season passes",
              "access exclusive DLC",
-             "access exclusive features"]
+             "access exclusive features",
+             "buy a season pass"]
 
 serial_verifier = re.compile('''^[0-9]{5}$''')
 discord_id_verifier = re.compile('''^[0-9]{17,19}$''')  # can be 17 digits only if quite an old ID!
@@ -81,6 +82,9 @@ class Tcg(commands.Cog):
         # message id:player
         self.offered_cards = []  # ANY card from ANYONE that is currently offered for trade, make sure unique
         self.trade_timeouts = {}  # mapping of mid:timer handle
+        self.cash_offer_proposers = {}  # message id: discord id
+        self.cash_offer_recipients = {}  # message id: discord id
+        self.cash_offer_quantities = {}  # tuples of (amount, serial no. of card)
 
         self.auctioned_cards = defaultdict(lambda: [])
         # a dict of serial number: [(price, bidder)], these tuples are used at end of auction
@@ -350,6 +354,34 @@ class Tcg(commands.Cog):
         print("conclude trade function ran")
         # you know, this is probably the time to wrap all these variables up into a new class
 
+    def cleanup_cash_offer(self, mid):
+
+        self.cash_offer_proposers.pop(mid)
+        self.cash_offer_recipients.pop(mid)
+        qty, serial = self.cash_offer_quantities.pop(mid)
+        self.offered_cards.remove(serial)
+
+    def conclude_cash_offer(self, mid):
+
+        value, serial = self.cash_offer_quantities[mid]
+        recipient = self.cash_offer_recipients[mid]
+        purchaser = self.cash_offer_proposers[mid]
+        self.cleanup_cash_offer(mid)  # remove it from all the lists regardless
+
+        purchaser_bux = self.bot.buxman.get_bux(purchaser)
+        if purchaser_bux < value:
+            return False, "purchaser didn't have sufficient funds"
+
+        if not self.bot.buxman.verify_ownership_single(serial, recipient):
+            return False, "card is now owned by someone else"
+            # the proposee doesn't own the card any more
+
+        self.bot.buxman.adjust_bux(recipient, value)
+        self.bot.buxman.adjust_bux(purchaser, -1 * value)
+        self.bot.buxman.add_card(purchaser, serial)
+
+        return True, f"<@{purchaser}> bought a card from <@{recipient}> for {value} snekbux! http://raibu.streams.moe/cards/{serial}.jpg"
+
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
 
@@ -391,6 +423,36 @@ class Tcg(commands.Cog):
         elif payload.emoji.name == "\U0001f4e6":  # package
             self.claimed = True   # try to deal with 2 users clicking it in a small window,
             await self.on_reaction(payload)
+
+        elif payload.emoji.name == "\U0001F44D":  # thumbs up
+            try:
+                expected_recipient = self.cash_offer_recipients[mid]
+            except KeyError:
+                return
+            if payload.member.id == expected_recipient:  # correct person reacting
+                proposer = self.cash_offer_proposers[mid]
+                success, reason = self.conclude_cash_offer(mid)
+                if not success:
+                    await chan.send(f"<@{proposer}>, your offer failed because: {reason}!")
+                else:
+                    await chan.send(reason)
+            else:
+                return
+
+        elif payload.emoji.name == "\U0001F44E":  # thumbs down
+            try:
+                expected_recipient = self.cash_offer_recipients[mid]
+            except KeyError:
+                return
+            if payload.member.id == expected_recipient:  # correct person reacting
+                try:
+                    proposer = self.cash_offer_proposers[mid]
+                except KeyError:
+                    return
+                await chan.send(f"<@{proposer}>, your offer was rejected! Too bad!")
+                self.cleanup_cash_offer(mid)
+            else:
+                return
 
     @commands.command()
     async def cards(self, ctx):
@@ -693,6 +755,59 @@ class Tcg(commands.Cog):
     async def muon_store(self, ctx):
 
         await ctx.message.channel.send("Feature coming soon:tm:")
+
+    @commands.command()
+    async def offer(self, ctx, amount, serial):
+
+        instructions = """Format of the command is 'snek offer [amount of snekbux] [card serial] to offer to buy the
+        card from the card's owner."""
+
+        if not re.match('''^[0-9]{1,9}$''', amount):
+            await ctx.message.channel.send(instructions)
+            return
+
+        if not serial_verifier.match(serial):
+            await ctx.message.channel.send(instructions)
+            return
+
+        if serial in self.offered_cards:
+            await ctx.message.channel.send("This card is currently involved in another trade proposal.")
+            return
+
+        amount = int(amount)
+
+        purchaser_funds = self.bot.buxman.get_bux(ctx.message.author.id)
+        if purchaser_funds < amount:
+            await ctx.message.channel.send("You can't offer more snekbux than you have! Doofus!")
+            return
+
+        try:
+            owner, z, x, y = self.bot.buxman.get_owners([serial])
+        except KeyError:  # serial doesn't exist
+            await ctx.message.channel.send("Card serial number doesn't exist!")
+            return
+
+        if owner is None:
+            await ctx.message.channel.send("Nobody owns that card!")
+            return
+
+        if owner == ctx.message.author.id:
+            await ctx.message.channel.send("You can't buy a card from yourself, numbnuts!")
+            return
+
+        mention = f"<@!{owner}>"
+
+        m = await ctx.message.channel.send(f"{mention}, {ctx.message.author.mention} has offered you {amount} snekbux "
+                                       f"to buy your card #{serial}. Do you acccept? "
+                                       f"http://raibu.streams.moe/cards/{serial}.jpg")
+
+        await m.add_reaction("\U0001F44D")
+        await m.add_reaction("\U0001F44E")
+        self.offered_cards.append(serial)
+        self.cash_offer_proposers[m.id] = ctx.message.author.id
+        self.cash_offer_recipients[m.id] = owner
+        self.cash_offer_quantities[m.id] = (amount, serial)
+
 
 
 def setup(bot):
