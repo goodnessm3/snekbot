@@ -27,7 +27,7 @@ class TwitterCheck:
 
     def __init__(self, user, myclient):
 
-        new = myclient.user_timeline(screen_name=user, count=1,exclude_replies=True)
+        new = myclient.user_timeline(screen_name=user, count=1, exclude_replies=True)
         # need to get tweets in exactly the same way as the consoom function, otherwise we might get
         # a reply ID here that would never be encountered when filtering out replies later
         self.last = new[0].id
@@ -192,7 +192,6 @@ class TwitterListener(commands.Cog):
         await ctx.message.channel.send("I am currently monitoring:\n" + ms)
 
 
+async def setup(bot):
 
-
-def setup(bot):
-    bot.add_cog(TwitterListener(bot))
+    await bot.add_cog(TwitterListener(bot))

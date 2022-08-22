@@ -146,6 +146,6 @@ class SnekGame(commands.Cog):
         await chan.send("\n".join(out))
 
 
-def setup(bot):
+async def setup(bot):
 
-    bot.add_cog(SnekGame(bot))
+    await bot.add_cog(SnekGame(bot))

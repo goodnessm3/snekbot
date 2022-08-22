@@ -68,6 +68,6 @@ class Shop(commands.Cog):
             chan = self.bot.get_channel(int(parts[2]))
             await chan.send("", file=discord.File("otherbirb.jpg"))
 
-def setup(bot):
+async def setup(bot):
 
-    bot.add_cog(Shop(bot))
+    await bot.add_cog(Shop(bot))

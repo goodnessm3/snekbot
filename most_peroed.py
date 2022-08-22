@@ -161,6 +161,8 @@ class Mpero(commands.Cog):
                 async with timeout(60):
                     a = await r.read()
 
+                    # TODO: this will make the process get killed if it uses a lot of memory trying to resize a big pic!
+
                     byts = BytesIO(a)  # make it look like a file so PIL can understand how to open it
                     im = Image.open(byts)
                     new_size = resize(im.size)
@@ -175,8 +177,7 @@ class Mpero(commands.Cog):
                     return hsh + "." + ext
 
 
+async def setup(bot):
 
-
-def setup(bot):
-    bot.add_cog(Mpero(bot))
+    await bot.add_cog(Mpero(bot))
 

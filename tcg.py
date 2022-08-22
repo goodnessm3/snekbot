@@ -810,6 +810,6 @@ class Tcg(commands.Cog):
 
 
 
-def setup(bot):
+async def setup(bot):
 
-    bot.add_cog(Tcg(bot))
+    await bot.add_cog(Tcg(bot))

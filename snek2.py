@@ -20,16 +20,18 @@ LOG = open("snek_log.txt", "a")
 prefixes = ["?", "Snek ", "snek ", "SNEK "]   # note trailing space in name prefix
 settings = {}  # overwritten by loading functions below
 updating = False  # global variable to determine whether snek is being restarted to update
+intents = discord.Intents.default()  # new for version 2.0
+intents.message_content = True
 
 if len(sys.argv) > 1 and sys.argv[1] == "-t":
     with open("settings_testing.json", "rb") as f:
         settings = json.load(f)
-    bot = commands.Bot(command_prefix=["!"])  # testing bot only responds to !-prefixed cmds
+    bot = commands.Bot(command_prefix=["!"], intents=intents)  # testing bot only responds to !-prefixed cmds
         
 else:
     with open("settings.json", "rb") as f:
         settings = json.load(f)
-    bot = commands.Bot(command_prefix=prefixes)
+    bot = commands.Bot(command_prefix=prefixes, intents=intents)
 
 
 bot.buxman = Manager(bot)
@@ -113,7 +115,7 @@ async def on_kill(msg, *args):
 async def load(ctx, extension):
 
     try:
-        bot.load_extension(extension)
+        await bot.load_extension(extension)
         await ctx.message.channel.send('''Loaded {}'''.format(extension))
     except Exception as e:
         await ctx.message.channel.send(str(e))
@@ -124,7 +126,7 @@ async def load(ctx, extension):
 async def unload(ctx, extension):
 
     try:
-        bot.unload_extension(extension)
+        await bot.unload_extension(extension)
         await ctx.message.channel.send('''Unloaded {}'''.format(extension))
     except Exception as e:
         await ctx.message.channel.send(str(e))
@@ -135,8 +137,8 @@ async def unload(ctx, extension):
 async def reload(ctx, extension):
 
     try:
-        bot.unload_extension(extension)
-        bot.load_extension(extension)
+        await bot.unload_extension(extension)
+        await bot.load_extension(extension)
         await ctx.message.channel.send('''Reloaded {}'''.format(extension))
     except Exception as e:
         await ctx.message.channel.send(str(e))
@@ -175,7 +177,7 @@ async def on_ready():
         cogs = json.load(f)
         for c in cogs:
             try:
-                bot.load_extension(c)
+                await bot.load_extension(c)
                 print(f"loaded {c} cog")
             except Exception as e:
                 print(f"Error loading {c} cog! See below:")

@@ -70,5 +70,6 @@ class Daily(commands.Cog):
         return str(mn - now)[:8]
 
 
-def setup(bot):
-    bot.add_cog(Daily(bot))
+async def setup(bot):
+
+    await bot.add_cog(Daily(bot))

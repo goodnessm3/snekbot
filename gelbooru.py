@@ -562,6 +562,6 @@ class Gelbooru(commands.Cog):
 
 
 
-def setup(bot):
+async def setup(bot):
 
-    bot.add_cog(Gelbooru(bot))
+    await bot.add_cog(Gelbooru(bot))

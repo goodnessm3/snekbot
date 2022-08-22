@@ -115,5 +115,6 @@ class Reminder(commands.Cog):
         return self.clock_finder.sub("", q)
 
 
-def setup(bot):
-    bot.add_cog(Reminder(bot))
+async def setup(bot):
+
+    await bot.add_cog(Reminder(bot))

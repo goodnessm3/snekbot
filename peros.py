@@ -393,5 +393,6 @@ class Peros(commands.Cog):
 	async def on_raw_reaction_remove(self, payload):
 		await self.on_reaction(payload, False)
 
-def setup(bot):
-	bot.add_cog(Peros(bot))
+async def setup(bot):
+
+	await bot.add_cog(Peros(bot))
