@@ -54,6 +54,12 @@ muon_uses = ["improve your chances for opening loot crates",
              "access exclusive features",
              "buy a season pass"]
 
+NPC_NAMES = ["Diogenes Pontifex (NPC)",
+             "Millmillamin Swimwambli (NPC)",
+             "William McGillian (NPC)",
+             "Audifax O'Hanlon (NPC)",
+             "Blast Hardcheese (NPC)"]
+
 serial_verifier = re.compile('''^[0-9]{5}$''')
 discord_id_verifier = re.compile('''^[0-9]{17,19}$''')  # can be 17 digits only if quite an old ID!
 
@@ -95,6 +101,7 @@ class Tcg(commands.Cog):
         self.bot.loop.call_later(12, lambda: asyncio.ensure_future(self.drop()))
         self.bot.loop.call_later(GACHA_LUCK_TIME, lambda: asyncio.ensure_future(self.decrement_counters()))
         self.bot.loop.call_later(CRATE_COST_TIME, lambda: asyncio.ensure_future(self.modulate_crate_cost()))
+        self.bot.loop.call_later(15, lambda: asyncio.ensure_future(self.npc_auction()))
 
     def make_auction_menu(self):
 
@@ -116,6 +123,39 @@ class Tcg(commands.Cog):
             out += f"http://raibu.streams.moe/card_summaries/{save_name}.jpg"
 
         return out
+
+    async def npc_auction(self):
+
+        uid = 1  # dummy UID for NPC owners
+        serial = self.bot.buxman.random_unowned_card()
+        if not serial:
+            return  # no cards avbl
+        self.bot.buxman.add_card(uid, serial)  # assign it to the NPC owner now so it can't be gacha'd in the interim
+        price = random.randint(1, 15) * 100
+        duration = random.randint(1,5)
+        dur_secs = float(duration * 86400)
+
+        self.auctioned_cards[serial].append((int(price), ""))  # this is normally the price and the ID of the bidders
+        self.card_auctioners[serial] = uid
+        self.offered_cards.append(serial)
+        self.auction_times[serial] = time.time() + dur_secs
+
+        if not os.path.exists(f"/var/www/html/cards/{serial}.jpg"):
+            shutil.move(f"/home/rargh/cards/{serial}.jpg", f"/var/www/html/cards/{serial}.jpg")
+
+        card_link = f"http://raibu.streams.moe/cards/{serial}.jpg"
+
+        await self.chan.send(f"{random.choice(NPC_NAMES)} is selling a card! Bidding starts at {price} "
+                                       f"snekbux. The auction will last for {duration} days. {card_link}")
+        print(self.auction_times)
+        print(self.auctioned_cards)
+        self.bot.loop.call_later(dur_secs, lambda: asyncio.ensure_future(self.conclude_auction(serial)))
+        print(f"Scheduled completion of auction after {dur_secs}s of serial {serial}")
+
+        next_auction = 86400 + random.randint(0, 86400 * 3)
+        self.bot.loop.call_later(next_auction, lambda: asyncio.ensure_future(self.npc_auction()))
+
+
 
     @commands.command()
     async def auction(self, ctx, *args):
@@ -228,7 +268,10 @@ class Tcg(commands.Cog):
                 return  # this should never actually happen should be captured by above
                 # actually it CAN happen, if the only submitted bids are LOWER than the reserve price
             bidder_name = f"<@{bidder}>"
-            payee_name = f"<@{payee}>"
+            if payee == 1:
+                payee_name = "an NPC"
+            else:
+                payee_name = f"<@{payee}>"
             funds = self.bot.buxman.get_bux(bidder)
             if funds < amount:
                 await self.chan.send(f"{bidder_name} bid for {card_name} but no longer has enough funds to pay, "
@@ -237,7 +280,8 @@ class Tcg(commands.Cog):
             else:
                 # the winning bidder can actually pay
                 self.bot.buxman.adjust_bux(bidder, -amount)
-                self.bot.buxman.adjust_bux(payee, amount)
+                if not payee == 1:  # dummy value for NPCs
+                    self.bot.buxman.adjust_bux(payee, amount)
                 self.bot.buxman.add_card(bidder, serial)
                 await self.chan.send(
                     f"{bidder_name} bought {card_name} from {payee_name} for {amount} snekbux! {card_link}")
