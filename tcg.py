@@ -398,19 +398,26 @@ class Tcg(commands.Cog):
         print("conclude trade function ran")
         # you know, this is probably the time to wrap all these variables up into a new class
 
-    def cleanup_cash_offer(self, mid):
+    async def cleanup_cash_offer(self, mid):
 
-        self.cash_offer_proposers.pop(mid)
+        try:
+            self.cash_offer_proposers.pop(mid)
+        except KeyError:
+            return  # offer already got accepted/denied
+        # TODO: cancel this nicely using the handle from the original scheduled task when I write this properly LMAO
         self.cash_offer_recipients.pop(mid)
         qty, serial = self.cash_offer_quantities.pop(mid)
         self.offered_cards.remove(serial)
 
-    def conclude_cash_offer(self, mid):
+    async def conclude_cash_offer(self, mid):
 
-        value, serial = self.cash_offer_quantities[mid]
+        try:
+            value, serial = self.cash_offer_quantities[mid]
+        except KeyError:
+            return  # offer probably already timed out
         recipient = self.cash_offer_recipients[mid]
         purchaser = self.cash_offer_proposers[mid]
-        self.cleanup_cash_offer(mid)  # remove it from all the lists regardless
+        await self.cleanup_cash_offer(mid)  # remove it from all the lists regardless
 
         purchaser_bux = self.bot.buxman.get_bux(purchaser)
         if purchaser_bux < value:
@@ -475,7 +482,7 @@ class Tcg(commands.Cog):
                 return
             if payload.member.id == expected_recipient:  # correct person reacting
                 proposer = self.cash_offer_proposers[mid]
-                success, reason = self.conclude_cash_offer(mid)
+                success, reason = await self.conclude_cash_offer(mid)
                 if not success:
                     await chan.send(f"<@{proposer}>, your offer failed because: {reason}!")
                 else:
@@ -494,7 +501,7 @@ class Tcg(commands.Cog):
                 except KeyError:
                     return
                 await chan.send(f"<@{proposer}>, your offer was rejected! Too bad!")
-                self.cleanup_cash_offer(mid)
+                await self.cleanup_cash_offer(mid)
             else:
                 return
 
@@ -842,7 +849,7 @@ class Tcg(commands.Cog):
         mention = f"<@!{owner}>"
 
         m = await ctx.message.channel.send(f"{mention}, {ctx.message.author.mention} has offered you {amount} snekbux "
-                                       f"to buy your card #{serial}. Do you acccept? "
+                                       f"to buy your card #{serial}. Do you acccept? (Will time out after 2 hours) "
                                        f"http://raibu.streams.moe/cards/{serial}.jpg")
 
         await m.add_reaction("\U0001F44D")
@@ -851,6 +858,8 @@ class Tcg(commands.Cog):
         self.cash_offer_proposers[m.id] = ctx.message.author.id
         self.cash_offer_recipients[m.id] = owner
         self.cash_offer_quantities[m.id] = (amount, serial)
+
+        self.bot.loop.call_later(7200, lambda: asyncio.ensure_future(self.cleanup_cash_offer(m.id)))
 
 
 
