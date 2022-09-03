@@ -11,9 +11,9 @@ import aiohttp
 from PIL import Image, ImageFont, ImageDraw
 from io import BytesIO
 import discord
+from mydecorators import get_confirmation
 
 HUMAN_CHECK_THRESHOLD = 4
-
 
 class Gelbooru(commands.Cog):
 
@@ -68,7 +68,7 @@ class Gelbooru(commands.Cog):
 
         self.bot.loop.create_task(self.purge_tag_hashes())
         self.bot.loop.create_task(self.monitor_tag_deltas())
-        self.bot.loop.call_later(300, lambda: asyncio.ensure_future(self.decrement_superusers()))
+        # self.bot.loop.call_later(300, lambda: asyncio.ensure_future(self.decrement_superusers()))
 
     async def forgive_user(self, uid):
 
