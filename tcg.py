@@ -9,6 +9,7 @@ import os
 import time
 import re
 from prettytable import PrettyTable
+from mydecorators import captcha
 
 dud_items = ["single dirty sock",
               "packet of broken biscuits",
@@ -69,6 +70,7 @@ GACHA_LUCK_TIME = 180
 CRATE_COST_TIME = 120
 TRADE_TIMEOUT = 300
 DEFAULT_AUCTION_LENGTH = 600
+
 
 class Tcg(commands.Cog):
 
@@ -154,8 +156,6 @@ class Tcg(commands.Cog):
 
         next_auction = 86400 + random.randint(0, 86400 * 3)
         self.bot.loop.call_later(next_auction, lambda: asyncio.ensure_future(self.npc_auction()))
-
-
 
     @commands.command()
     async def auction(self, ctx, *args):
@@ -306,8 +306,11 @@ class Tcg(commands.Cog):
         uids = self.bot.buxman.get_uids_with_cards()
         adict = {}
         for x in uids:
-            mem = await self.chan.guild.fetch_member(x)
-            adict[x] = mem.display_name
+            try:
+                mem = await self.chan.guild.fetch_member(x)
+                adict[x] = mem.display_name
+            except:
+                print(f"user with id {x} was not found when updating display names")
 
         self.bot.buxman.update_card_trader_names(adict)
         self.bot.loop.call_later(86400, lambda: asyncio.ensure_future(self.update_player_names()))
@@ -576,6 +579,7 @@ class Tcg(commands.Cog):
         return ceil(tot / 10)
 
     @commands.command()
+    @captcha
     async def crate(self, ctx):
 
         cost = self.crate_cost[ctx.message.author.id]
@@ -860,7 +864,6 @@ class Tcg(commands.Cog):
         self.cash_offer_quantities[m.id] = (amount, serial)
 
         self.bot.loop.call_later(7200, lambda: asyncio.ensure_future(self.cleanup_cash_offer(m.id)))
-
 
 
 async def setup(bot):

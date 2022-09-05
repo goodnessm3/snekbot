@@ -8,12 +8,10 @@ from collections import defaultdict
 import clean_text as ct
 from Tree_Server import Tree_Server
 import aiohttp
-from PIL import Image, ImageFont, ImageDraw
-from io import BytesIO
-import discord
-from mydecorators import get_confirmation
+from mydecorators import captcha
 
 HUMAN_CHECK_THRESHOLD = 4
+
 
 class Gelbooru(commands.Cog):
 
@@ -39,24 +37,6 @@ class Gelbooru(commands.Cog):
 
         self.recent_image_user = None  # the USER who caused the most recent image to be posted
 
-        self.super_users = defaultdict(lambda:0)  # people who need to be rate limited
-        self.awaited_super_users = {}  # emoji: user ID, need to get a react from this user
-
-        self.awaited_answers = {}  # uid:number, answers for mathematical captchas
-
-        self.reaction_emojis = [
-            ("\U00002705", "check mark"),
-            ("\U0001F49A", "green heart"),
-            ("\U0001F341", "maple leaf"),
-            ("\U0001F34B", "lemon"),
-            ("\U0001F955", "carrot"),
-            ("\U0001F980", "crab"),
-            ("\U0001F9F1", "brick"),
-            ("\U0001F4CE", "paperclip"),
-        ]
-        self.expected_reacts = []  # add emojis here that snek is expecting to get
-        self.timed_out = []  # users who responded with the wrong emoji
-
         with open("tag_values.json", "r") as f:
             self.tag_values = json.load(f)
 
@@ -70,40 +50,12 @@ class Gelbooru(commands.Cog):
         self.bot.loop.create_task(self.monitor_tag_deltas())
         # self.bot.loop.call_later(300, lambda: asyncio.ensure_future(self.decrement_superusers()))
 
-    async def forgive_user(self, uid):
-
-        self.timed_out.remove(uid)
-        print(f"un-timed-out user {uid}")
-
     @commands.command()
     async def delet(self, ctx):
 
         if self.last_pic:
             await self.last_pic.delete()
             self.last_pic = None
-
-
-    async def forget_maths_captcha(self, uid):
-
-        self.awaited_answers.pop(uid)
-
-    def check_high_rate(self, uid):
-
-        if self.super_users[uid] > HUMAN_CHECK_THRESHOLD:
-            return True
-        return False
-
-    async def decrement_superusers(self):
-
-        print("resetting superuser dict")
-        for k, v in self.super_users.items():
-            if v > 0:
-                # new = v-1
-                self.super_users[k] = 0  # actually just reset totally
-
-        self.super_users = defaultdict(lambda: 0)
-        self.awaited_super_users = {}
-        self.bot.loop.call_later(1800, lambda: asyncio.ensure_future(self.decrement_superusers()))
 
     @commands.command()
     async def nr_tags(self, ctx):
@@ -187,92 +139,12 @@ class Gelbooru(commands.Cog):
             self.tag_hashes.append(hashed)
             self.dbman.distribute_dividend(tags)
 
-    async def test_captcha(self, ctx):
-
-        pic, answer = self.captcha_image()
-        byts = BytesIO()
-        pic.save(byts, format="png")
-        byts.seek(0)
-        await ctx.message.channel.send("Provide your answer with snek the_answer_to_the_captcha_is [answer]")
-        await ctx.message.channel.send(file=discord.File(byts, "captcha.png"))
-
-        self.awaited_answers[ctx.message.author.id] = answer
-
-    async def captcha(self, chan, uid):
-
-        if random.randint(0, 10) < 4:
-            pic, answer = self.captcha_image()
-            byts = BytesIO()
-            pic.save(byts, format="png")
-            byts.seek(0)
-            await chan.send("It looks like you're enjoying this feature a lot! Provide your answer with snek "
-                            "the_answer_to_the_captcha_is [answer] to continue using this feature!")
-            await chan.send(file=discord.File(byts, "captcha.png"))
-            self.awaited_answers[uid] = answer
-            delay = random.randint(1800, 7200)
-            self.bot.loop.call_later(delay, lambda: asyncio.ensure_future(self.forget_maths_captcha(uid)))
-
-        else:
-            emojicode, emojiname = random.choice(self.reaction_emojis)
-            samp = []
-            while len(samp) < 5:
-                # we can't just use random.sample() because all must be unique
-                new = random.choice(self.reaction_emojis)
-                if new[0] == emojicode or new in samp:
-                    continue
-                else:
-                    samp.append(new)
-            others = [x[0] for x in samp]
-            mess = await chan.send(
-                f"It looks like you're enjoying this feature a lot! Click the {emojiname} to continue using it!")
-            self.awaited_super_users[emojicode] = uid
-            others.append(emojicode)
-            random.shuffle(others)
-            print(samp)
-            await asyncio.sleep(0.5)
-            for x in others:
-                await asyncio.sleep(0.5)
-                print(f"adding rxn")
-                await mess.add_reaction(x)
-
-    '''
-    @commands.command()
-    async def testfunc(self, ctx):
-
-        uid = ctx.message.author.id
-        if self.check_high_rate(uid):
-            if not uid in self.awaited_super_users.values():
-                await self.captcha(ctx.message.channel, uid)
-            return
-
-        self.super_users[uid] += 1  # count the number of times the user used this command
-
-        await ctx.message.channel.send("teststr")
-    '''
-
-
     @commands.command()
     @commands.cooldown(8, 300, type=commands.BucketType.user)
+    @captcha
     async def gelbooru(self, ctx, *args):
 
         """look up a picture on gelbooru"""
-
-        ########### put this in a decorator ##########
-        uid = ctx.message.author.id
-
-        if uid in self.timed_out:
-            return
-
-        if uid in self.awaited_answers.keys():
-            return
-
-        if self.check_high_rate(uid) and uid in self.bot.watch_list:
-            if not uid in self.awaited_super_users.values():
-                await self.captcha(ctx.message.channel, uid)
-            return
-
-        self.super_users[uid] += 1  # count the number of times the user used this command
-        #################################################
 
         out = ""
 
@@ -317,26 +189,10 @@ class Gelbooru(commands.Cog):
 
     @commands.command()
     @commands.cooldown(8, 300, type=commands.BucketType.user)
+    @captcha
     async def again(self, ctx, *args):
 
         """repeat the last search, optionally with extra tags"""
-
-        ########### put this in a decorator ##########
-        uid = ctx.message.author.id
-
-        if uid in self.timed_out:
-            return
-
-        if uid in self.awaited_answers.keys():
-            return
-
-        if self.check_high_rate(uid) and uid in self.bot.watch_list:
-            if not uid in self.awaited_super_users.values():
-                await self.captcha(ctx.message.channel, uid)
-            return
-
-        self.super_users[uid] += 1  # count the number of times the user used this command
-        #################################################
 
         cid = ctx.message.channel.id
         new_tags = []
@@ -501,65 +357,6 @@ class Gelbooru(commands.Cog):
         # this command tracks how many times the tag came up in a result since the last time checked,
         # all done inside the SQL command in the DB manager
         self.bot.loop.call_later(86400, lambda: asyncio.ensure_future(self.monitor_tag_deltas()))
-
-    @commands.command()
-    @commands.cooldown(2, 1800, type=commands.BucketType.user)
-    async def the_answer_to_the_captcha_is(self, ctx, ans):
-
-        try:
-            wanted_answer = self.awaited_answers[ctx.message.author.id]
-        except KeyError:
-            return
-        if str(wanted_answer) == str(ans):
-            await ctx.message.channel.send("OK, you can continue using this function.")
-            self.awaited_answers.pop(ctx.message.author.id)
-            self.super_users[ctx.message.author.id] = 0
-        else:
-            await ctx.message.channel.send("Wrong answer!")
-
-    @commands.Cog.listener()
-    async def on_raw_reaction_add(self, payload):
-
-        if payload.member == self.bot.user:
-            return  # ignore own reaction
-
-        if payload.emoji.name in self.awaited_super_users.keys():
-            if self.awaited_super_users[payload.emoji.name] == payload.member.id:
-                self.super_users[payload.member.id] = 0
-                self.awaited_super_users.pop(payload.emoji.name)
-                print("user can now continue using the fxn")
-        else:
-            if payload.member.id in self.awaited_super_users.values():  # right user, wrong emoji
-                chan = self.bot.get_channel(payload.channel_id)
-                await chan.send(f"<@{payload.member.id}>, You reacted with the wrong emoji "
-                                f"and have been timed out for a random amount of time (30 minutes - 2 hours)!")
-                self.awaited_super_users.pop(payload.emoji.name)
-                # stop listening or we'll get this result for EVERY react the user adds
-                self.super_users[payload.member.id] = 0
-                self.timed_out.append(payload.member.id)
-                timeout = random.randint(1800, 7200)
-                self.bot.loop.call_later(timeout, lambda: asyncio.ensure_future(self.forgive_user(payload.member.id)))
-
-    def captcha_image(self):
-
-        num1 = random.randint(1, 10000)
-        num2 = random.randint(1, 10000)
-        text = f"{num1} x {num2}"
-
-        font = ImageFont.truetype("arial.ttf", 20)
-        image_width = font.getlength(text)
-        white = Image.new("RGBA", (int(image_width) + 3, 24), (220, 220, 220))
-        ctx = ImageDraw.Draw(white)  # drawing context to write text
-
-        for _ in range(9):
-            coord1 = (random.randint(0, int(image_width)), 0)
-            coord2 = (random.randint(0, int(image_width)), 24)
-            ctx.line((coord1, coord2), (10, 10, 10))
-
-        ctx.text((2, 2), text, font=font, fill=(10, 10, 10))
-
-        return white, num1 * num2
-
 
 
 async def setup(bot):

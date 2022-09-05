@@ -94,7 +94,7 @@ class TotalTracker:
 
     def __init__(self):
 
-        self.count = 0
+        self.count = 1
         self.awaiting = False
 
     def update(self):
@@ -122,8 +122,11 @@ def captcha(coro):
         else:  # more lenient time-based buckets for regular users
             tracker_obj = FUNC_LEAKYBUCKETS[user][coro]
 
-        tracker_obj.update()
         repeated = tracker_obj.check()
+        if not repeated:
+            tracker_obj.update()
+            # stop updating when threshold reached otherwise we'll continue to increment the counter regardless
+            # of whether the captcha gets solved
 
         if tracker_obj.awaiting:
             return  # user is trying to use this command again without solving the captcha, ignore
@@ -133,6 +136,7 @@ def captcha(coro):
 
         # otherwise, we need to present a captcha before the user can get the result of their command
         tracker_obj.awaiting = True  # block other captchas appearing until we get a response for this one
+        tracker_obj.update()  # TODO: think more carefully about where this should happen
 
         emojicode, emojiname = random.choice(REACTION_EMOJIS)  # the one we want the user to react with
         samp = []
