@@ -690,3 +690,23 @@ class Manager:
             dates.append(datetime.datetime.strptime(x[0][:16], "%Y-%m-%d %H:%M"))
 
         return dates, cumulatives
+
+    def bux_graph_data(self, uid):
+
+        """For showing a user's wealth over time"""
+
+        self.cursor.execute('''SELECT bux FROM stats WHERE uid = ?''', (uid,))
+        bux_now = self.cursor.fetchall()[0][0]
+
+        self.cursor.execute('''SELECT date, amt FROM buxlog WHERE uid = ? ORDER BY date DESC''', (uid,))
+        points = []
+        dates = []
+        b = bux_now
+        for date, amt in self.cursor.fetchall():
+            bux_next = b - amt
+            date = datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S")
+            points.append(bux_next)
+            dates.append(date)
+            b = bux_next
+
+        return dates, points

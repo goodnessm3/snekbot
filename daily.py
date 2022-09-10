@@ -1,6 +1,9 @@
 from discord.ext import commands
 import datetime
 import time
+import matplotlib.pyplot as plt
+from io import BytesIO
+import discord
 
 class Daily(commands.Cog):
 
@@ -68,6 +71,29 @@ class Daily(commands.Cog):
         now = datetime.datetime.now()
         mn = datetime.datetime.combine(now.date(), datetime.time(23, 59, 59))
         return str(mn - now)[:8]
+
+    @commands.command()
+    async def bux_history(self, ctx):
+
+        fig, ax = plt.subplots()  # Create a figure containing a single axes.
+        ax.plot(*self.bot.buxman.bux_graph_data(ctx.message.author.id))
+        # ax.plot(*get_data("solo", 7))
+        uname = ctx.message.author.display_name
+        ax.set_title(f"{uname}'s wealth over time")
+        ax.set_ylabel("count (cumulative)")
+
+        for label in ax.get_xticklabels(which='major'):
+            label.set(rotation=50, horizontalalignment='right')
+
+        buffer = BytesIO()
+        plt.tight_layout()  # otherwise the rotated date labels will get cut off
+        plt.savefig(buffer, format="png")
+        buffer.seek(0)
+
+        await ctx.message.channel.send(file=discord.File(buffer, filename="graph.png"))
+        # we need to provide a filename so it's correctly detected as a .png and shown as an image
+
+
 
 
 async def setup(bot):
