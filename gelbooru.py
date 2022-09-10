@@ -9,6 +9,10 @@ import clean_text as ct
 from Tree_Server import Tree_Server
 import aiohttp
 from mydecorators import captcha
+import matplotlib.pyplot as plt
+from PIL import Image
+from io import BytesIO
+import discord
 
 HUMAN_CHECK_THRESHOLD = 4
 
@@ -358,6 +362,30 @@ class Gelbooru(commands.Cog):
         # all done inside the SQL command in the DB manager
         self.bot.loop.call_later(86400, lambda: asyncio.ensure_future(self.monitor_tag_deltas()))
 
+    @commands.command()
+    async def tag_trend(self, ctx, tag):
+
+        interval = 90
+        fig, ax = plt.subplots()  # Create a figure containing a single axes.
+        dat = self.bot.buxman.get_graph_data(tag, interval)
+        if not dat:
+            await ctx.message.channel.send("No information available for that tag!")
+            return
+        ax.plot(*dat)
+        # ax.plot(*get_data("solo", 7))  # you could plot multiple lines on the same graph
+        ax.set_title(f"{tag} images {interval} days before most recent image")
+        ax.set_ylabel("count (cumulative)")
+
+        for label in ax.get_xticklabels(which='major'):
+            label.set(rotation=50, horizontalalignment='right')
+
+        buffer = BytesIO()
+        plt.tight_layout()  # otherwise the rotated date labels will get cut off
+        plt.savefig(buffer, format="png")
+        buffer.seek(0)
+
+        await ctx.message.channel.send(file=discord.File(buffer, filename="graph.png"))
+        # we need to provide a filename so it's correctly detected as a .png and shown as an image
 
 async def setup(bot):
 

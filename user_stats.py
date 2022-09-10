@@ -1,6 +1,7 @@
 import sqlite3
 import re
 from collections import defaultdict
+import datetime
 
 
 def get_max(dc):
@@ -652,3 +653,40 @@ class Manager:
         start = start[:-3]  # trim final "AND"
         self.cursor.execute(start, search_qry)
         return self.cursor.fetchall()
+
+    def get_graph_data(self, tag, time_ago=14):
+
+        """compiles a list of data points to plot a graph of a tag's trend over time. Returns a cumulative sum
+        by date that the tag deltas table was updated."""
+
+        if type(time_ago) is not int:
+            raise TypeError("time delta must be an integer number of days")
+            # need to be careful with this as an f-string for SQL substitution is being manually assembled
+
+        time_modifier = f"-{time_ago} days"
+
+        self.cursor.execute('''SELECT datetime(CURRENT_TIMESTAMP, ?), SUM(change) FROM tag_deltas
+        WHERE tag = ?
+        AND time < datetime(CURRENT_TIMESTAMP, ?)''', (time_modifier, tag, time_modifier))
+        # this gives the cumulative value up to that point, as the start value for the plot
+
+        qq = self.cursor.fetchall()
+        if not qq[0][1]:
+            return
+        start_value = int(qq[0][1])
+        start_date = datetime.datetime.strptime(qq[0][0][:16], "%Y-%m-%d %H:%M")
+
+        self.cursor.execute('''SELECT time, change FROM tag_deltas
+        WHERE tag = ?
+        and time > datetime(CURRENT_TIMESTAMP, ?)''', (tag, time_modifier))
+        res = self.cursor.fetchall()
+
+        cumulatives = [start_value]
+        dates = [start_date]
+
+        for x in res:
+            new = cumulatives[-1] + x[1]  # add the delta to the last value to get a cumulative sum
+            cumulatives.append(new)
+            dates.append(datetime.datetime.strptime(x[0][:16], "%Y-%m-%d %H:%M"))
+
+        return dates, cumulatives
