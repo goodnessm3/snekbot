@@ -705,7 +705,7 @@ class Manager:
         for date, amt in self.cursor.fetchall():
             bux_next = b - amt
             date = datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S")
-            points.append(bux_next)
+            points.append(b)
             dates.append(date)
             b = bux_next
 
