@@ -44,6 +44,9 @@ class Gelbooru(commands.Cog):
         with open("tag_values.json", "r") as f:
             self.tag_values = json.load(f)
 
+        with open("blocked_tags.json", "r") as f:
+            self.blocked_tags = json.load(f)
+
         mons = self.dbman.get_all_monitored()
         for x in mons:
             tag, cid = x
@@ -169,6 +172,14 @@ class Gelbooru(commands.Cog):
             self.dbman.log_search(ctx.message.author.id, ["random"])
         else:
             self.dbman.log_search(ctx.message.author.id, args)
+
+        for q in args:
+            for r in self.blocked_tags:
+                if q == r:
+                    await ctx.message.channel.send(f"The tag '{q}' has been banned due to popular demand!"
+                                                   f" For searching a banned tag, you have been fined 1000 snekbux!")
+                    self.bot.buxman.adjust_bux(ctx.message.author.id, -1000)
+                    return
 
         self.last_tags[ctx.message.channel.id] = list(args)
         res, tags = await self.get_image(*args)
