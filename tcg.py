@@ -9,7 +9,7 @@ import os
 import time
 import re
 from prettytable import PrettyTable
-from mydecorators import captcha
+from mydecorators import captcha, annoy
 
 dud_items = ["single dirty sock",
               "packet of broken biscuits",
@@ -509,6 +509,7 @@ class Tcg(commands.Cog):
                 return
 
     @commands.command()
+    @annoy
     async def cards(self, ctx):
 
         uid = ctx.message.author.id
@@ -544,6 +545,7 @@ class Tcg(commands.Cog):
 
         """Expects a dictionary of series:files so they can be grouped appropriately"""
 
+
         if small:
             width = min(3000, len(files[""])*300)  # this dict is not keyed by series, just by empty string
         else:
@@ -554,17 +556,22 @@ class Tcg(commands.Cog):
 
         x = 0
         y = 0
+        done = []  # for deduplication in case for some reason a number appears multiple times
 
         for k, v in files.items():  # key is series, v is list of files
-            for q in v:
-                #image_path = f"C:\\s\\tcg\\cards\\{str(q).zfill(5)}.jpg"  #  for testing
-                image_path = f"/var/www/html/cards/{q}.jpg"
-                im = Image.open(image_path)
-                black.paste(im, (x, y))
-                x += 300
-                if x >= 3000:
-                    x = 0
-                    y += 600
+            if k in done:
+                continue
+            else:
+                done.append(k)
+                for q in v:
+                    #image_path = f"C:\\s\\tcg\\cards\\{str(q).zfill(5)}.jpg"  #  for testing
+                    image_path = f"/var/www/html/cards/{q}.jpg"
+                    im = Image.open(image_path)
+                    black.paste(im, (x, y))
+                    x += 300
+                    if x >= 3000:
+                        x = 0
+                        y += 600
 
         if width > 1000:
             return black.resize((1000, ceil(height / 3)))
@@ -580,6 +587,7 @@ class Tcg(commands.Cog):
 
     @commands.command()
     @captcha
+    @annoy
     async def crate(self, ctx):
 
         cost = self.crate_cost[ctx.message.author.id]
@@ -764,6 +772,7 @@ class Tcg(commands.Cog):
         await ctx.message.channel.send("Also go to http://raibu.streams.moe/card_search to more easily view cards!")
 
     @commands.command()
+    @annoy
     async def burn(self, ctx, *args):
 
         uid = ctx.message.author.id

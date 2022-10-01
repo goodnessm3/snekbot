@@ -8,6 +8,9 @@ import json
 with open("watch_list.json", "r") as f:
     WATCH_LIST = json.load(f)
 
+with open("annoy_list.json", "r") as f:
+    ANNOY_LIST = json.load(f)
+
 FUNC_TIMES = defaultdict(lambda: defaultdict(TimeTracker))
 FUNC_LEAKYBUCKETS = defaultdict(lambda: defaultdict(lambda: BucketTracker(6, 60)))
 FUNC_TOTALBUCKETS = defaultdict(lambda: defaultdict(TotalTracker))
@@ -24,6 +27,11 @@ REACTION_EMOJIS = [
             ("\U0001F4CE", "paperclip"),
         ]
 
+REFUSALS = ["No!",
+            "Baka!",
+            "Not now, maybe later.",
+            "You don't have enough muon to activate that function!",
+            "I'm sorry but I can't do that."]
 
 class TimeTracker:
 
@@ -181,3 +189,19 @@ def captcha(coro):
         return await coro(*args, **kwargs)
 
     return inner
+
+
+def annoy(coro):
+
+    @functools.wraps(coro)
+    async def inner(*args, **kwargs):
+
+        ctx = args[1]
+        if random.randint(0,4) == 3 and ctx.message.author.id in ANNOY_LIST:
+            return await ctx.message.channel.send(random.choice(REFUSALS))
+        else:
+            return await coro(*args, **kwargs)
+
+    return inner
+
+

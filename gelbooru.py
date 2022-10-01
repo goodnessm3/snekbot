@@ -8,7 +8,7 @@ from collections import defaultdict
 import clean_text as ct
 from Tree_Server import Tree_Server
 import aiohttp
-from mydecorators import captcha
+from mydecorators import captcha, annoy
 import matplotlib.pyplot as plt
 from PIL import Image
 from io import BytesIO
@@ -149,6 +149,7 @@ class Gelbooru(commands.Cog):
     @commands.command()
     @commands.cooldown(8, 300, type=commands.BucketType.user)
     @captcha
+    @annoy
     async def gelbooru(self, ctx, *args):
 
         """look up a picture on gelbooru"""
@@ -205,6 +206,7 @@ class Gelbooru(commands.Cog):
     @commands.command()
     @commands.cooldown(8, 300, type=commands.BucketType.user)
     @captcha
+    @annoy
     async def again(self, ctx, *args):
 
         """repeat the last search, optionally with extra tags"""
