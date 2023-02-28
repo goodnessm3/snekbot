@@ -69,7 +69,17 @@ RANDOM_MAX = 86400
 GACHA_LUCK_TIME = 180
 CRATE_COST_TIME = 120
 TRADE_TIMEOUT = 300
-DEFAULT_AUCTION_LENGTH = 600
+DEFAULT_AUCTION_LENGTH = 2  # hours
+
+
+def time_print(flt):
+    flt = int(flt)  # don't care about fractional seconds
+    days = flt // 86400
+    hours = flt % 86400 // 3600
+    minutes = flt % 3600 // 60
+    seconds = flt % 60
+
+    return f"{days} days, {hours} hours, {minutes} minutes and {seconds} seconds"
 
 
 class Tcg(commands.Cog):
@@ -113,7 +123,7 @@ class Tcg(commands.Cog):
             price = max([x[0] for x in v])
             nm = self.bot.buxman.serial_to_name(k)
             tm = int(self.auction_times[k] - time.time())
-            out += f"#{k} - {nm}, current high bid: {price}, time remaining: {tm} s\n"
+            out += f"#{k} - {nm}, current high bid: {price}, time remaining: {time_print(tm)}\n"
 
         if len(self.auctioned_cards.keys()) > 0:
             pilimage = self.make_card_summary({"":list(self.auctioned_cards.keys())}, small=True)
@@ -154,7 +164,7 @@ class Tcg(commands.Cog):
         self.bot.loop.call_later(dur_secs, lambda: asyncio.ensure_future(self.conclude_auction(serial)))
         print(f"Scheduled completion of auction after {dur_secs}s of serial {serial}")
 
-        next_auction = 86400 + random.randint(0, 86400 * 3)
+        next_auction = 86400 + random.randint(0, 86400)
         self.bot.loop.call_later(next_auction, lambda: asyncio.ensure_future(self.npc_auction()))
 
     @commands.command()
@@ -162,9 +172,9 @@ class Tcg(commands.Cog):
 
         """args are card serial, cost, time in seconds if wanted else default to 600 secs"""
 
-        instructions = "Format of the command is snek auction [card serial] [min. price] [duration] "\
+        instructions = "Format of the command is snek auction [card serial] [min. price] [hours duration] "\
                         "e.g. to sell card 00123 for a minimum price of 500 snekbux, with a timeout "\
-                        "of 2 minutes, type 'snek auction 00123 500 120'."
+                        "of 2 hours, type 'snek auction 00123 500 2'."
 
         if not args:
             await ctx.message.channel.send(self.make_auction_menu())
@@ -182,13 +192,13 @@ class Tcg(commands.Cog):
         if len(args) == 2:
             args = list(args)  # so we can append the default time
             args.append(float(DEFAULT_AUCTION_LENGTH))  # add the FINISHING time of the auction
-        if not re.match('''^[0-9]{2,5}$''', args[2]):  # the duration in seconds
+        if not re.match('''^[0-9]{2,5}$''', args[2]):  # the duration in hours
             await ctx.message.channel.send(instructions)
             return
 
         uid = ctx.message.author.id
         serial, price, duration = args
-        duration = float(duration)
+        duration = float(duration * 3600)  # internally use seconds
 
         if serial in self.offered_cards:
             await ctx.message.channel.send("That card is already involved in an auction or trade")
@@ -204,7 +214,7 @@ class Tcg(commands.Cog):
         self.auction_times[serial] = time.time() + duration
         card_link = f"http://raibu.streams.moe/cards/{serial}.jpg"
         await ctx.message.channel.send(f"{ctx.message.author.mention} is selling a card! Bidding starts at {price} "
-                                       f"snekbux. The auction will last for {duration} s. {card_link}")
+                                       f"snekbux. The auction will last for {time_print(duration)}. {card_link}")
         print(self.auction_times)
         print(self.auctioned_cards)
         self.bot.loop.call_later(duration, lambda: asyncio.ensure_future(self.conclude_auction(serial)))
@@ -241,7 +251,7 @@ class Tcg(commands.Cog):
 
         highbid = max([x[0] for x in self.auctioned_cards[serial]])
 
-        await ctx.message.channel.send(f"You bid {cost} snekbux on card #{serial}! ({card_name}). {tm} seconds remain."
+        await ctx.message.channel.send(f"You bid {cost} snekbux on card #{serial}! ({card_name}). {time_print(tm)} seconds remain."
                                        f" The current high bid is {highbid} snekbux.")
 
     async def conclude_auction(self, serial):
