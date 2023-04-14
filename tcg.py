@@ -73,6 +73,8 @@ DEFAULT_AUCTION_LENGTH = 2  # hours
 
 
 def time_print(flt):
+
+    print("float to convert to int: ", flt)
     flt = int(flt)  # don't care about fractional seconds
     days = flt // 86400
     hours = flt % 86400 // 3600
