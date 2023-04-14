@@ -263,10 +263,10 @@ async def bux(ctx):
             f"\nYou have gained {divi} snekbux from your investments since you last checked!")
 
 
-@bot.event
-async def on_command_error(ctx, error):
+#@bot.event
+#async def on_command_error(ctx, error):
 
-    await ctx.message.channel.send(error)
+#    await ctx.message.channel.send(error)
 
 
 @bot.command()
