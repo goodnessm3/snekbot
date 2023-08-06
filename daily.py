@@ -39,6 +39,8 @@ class Daily(commands.Cog):
         if strk == 365:
             await ctx.message.channel.send("Congratulations! You have won snek daily! 50 snekbux have been added to your account!")
             self.bot.buxman.adjust_bux(uid, 50)
+        if strk == 420:
+            await ctx.message.channel.send("Lmao 420 blaze it XD")
 
     def time_check(self, uid):
 
