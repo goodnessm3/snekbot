@@ -381,6 +381,9 @@ class Gelbooru(commands.Cog):
         interval = 90
         fig, ax = plt.subplots()  # Create a figure containing a single axes.
         dat = self.bot.buxman.get_graph_data(tag, interval)
+
+        print(dat)
+
         if not dat:
             await ctx.message.channel.send("No information available for that tag!")
             return

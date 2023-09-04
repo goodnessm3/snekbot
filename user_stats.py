@@ -1,4 +1,4 @@
-import sqlite3
+import psycopg2
 import re
 from collections import defaultdict
 import datetime
@@ -23,9 +23,9 @@ class Manager:
 
     def __init__(self, bot):
 
-        self.db = sqlite3.connect("user_stats.sqlite3")
-        self.cursor = self.db.cursor()
         self.bot = bot
+        self.db = psycopg2.connect(self.bot.settings["postgres_string"])  # containing dbname, user, host, port, pwd
+        self.cursor = self.db.cursor()
         self.input_checker = re.compile("[0-9A-Za-z!,.?&\"'+-]{,50}")
 
     def check_input_string(self, astr):
@@ -37,27 +37,27 @@ class Manager:
 
     def get_bux(self, uid):
 
-        self.cursor.execute('''select bux from stats where uid = ?''', (uid,))
+        self.cursor.execute('''select bux from stats where uid = %s''', (uid,))
         
         restuple = self.cursor.fetchone()
         if restuple is None:  # User has no entry in stats. Make a new one
             self.cursor.execute('''
-            insert into stats (uid, bux, level, muon) values (?, 0, 0, 0)
+            insert into stats (uid, bux, level, muon) values (%s, 0, 0, 0)
             ''', (str(uid),))
             # the database expects a string, not an int, for the uid
-            # todo: why?
+            # todo: why%s
             return 0  # we know this is the right value because we just put it in the db
         
         return restuple[0]  # if the user just wants one value, return a value rather than tuple
 
     def get_muon(self, uid):
 
-        self.cursor.execute('''select muon from stats where uid = ?''', (uid,))
+        self.cursor.execute('''select muon from stats where uid = %s''', (uid,))
 
         restuple = self.cursor.fetchone()
         if restuple is None:  # User has no entry in stats. Make a new one
             self.cursor.execute('''
-                    insert into stats (uid, bux, level, muon) values (?, 0, 0, 0)
+                    insert into stats (uid, bux, level, muon) values (%s, 0, 0, 0)
                     ''', (str(uid),))
             return 0
 
@@ -65,23 +65,23 @@ class Manager:
 
     def get_stats(self, uid, *args):
 
-        query_str = '''select {} from stats where uid = ?'''.format(",".join(args))
+        query_str = '''select {} from stats where uid = %s'''.format(",".join(args))
         self.cursor.execute(query_str, (uid,))
         return self.cursor.fetchone()  # returns a tuple of the values
 
     def set_stat(self, uid, stat, value):
 
-        set_str = '''update stats set {} = ? where uid = ?'''.format(stat)
+        set_str = '''update stats set {} = %s where uid = %s'''.format(stat)
         self.cursor.execute(set_str, (value, uid))
 
     def set_hiscore(self, name, level, exp):
 
         name = name.encode("UTF-8")
-        self.cursor.execute('''update hiscore set name = ?, level = ?, exp =? where a = ?''', (name, level, exp, "aaa"))
+        self.cursor.execute('''update hiscore set name = %s, level = %s, exp =%s where a = %s''', (name, level, exp, "aaa"))
 
     def get_hiscore(self):
 
-        self.cursor.execute('''select * from hiscore where a = ?''', ("aaa",))
+        self.cursor.execute('''select * from hiscore where a = %s''', ("aaa",))
         aaa, name, level, exp = self.cursor.fetchone()
         if name:
             name = name.decode("UTF-8")
@@ -89,15 +89,22 @@ class Manager:
 
     def adjust_bux(self, uid, amt):
 
-        self.cursor.execute('''SELECT * FROM stats WHERE uid = ?''', (uid,))
+        self.cursor.execute('''SELECT * FROM stats WHERE uid = %s''', (uid,))
         res = self.cursor.fetchone()  # check if user already existed
         if not res:  # we need to add a new entry for them
-            self.cursor.execute('''insert into stats (uid, bux) VALUES (?, ?)''', (uid, amt))
-        else:
-            self.cursor.execute('''update stats set bux = MAX(0, bux + ?) where uid = ?''', (amt, uid))
+            self.cursor.execute('''insert into stats (uid, bux) VALUES (%s, %s)''', (uid, amt))
+        #else:
+            #self.cursor.execute('''update stats set bux = MAX(0, bux + %s) where uid = %s''', (amt, uid))
             # make sure it doesn't go negative
+        else:
+            self.cursor.execute('''UPDATE stats SET bux = CASE
+            WHEN (bux + %s) < 0 THEN 0
+            ELSE bux + %s
+            END
+            WHERE uid = %s''', (amt, amt, uid))  # ensure it doesn't go negative, postgres max function works differe?
 
-        self.cursor.execute('''INSERT INTO buxlog (uid, amt) VALUES (? ,?)''', (uid, amt))
+
+        self.cursor.execute('''INSERT INTO buxlog (uid, amt) VALUES (%s ,%s)''', (uid, amt))
 
         """  # old code removed, UNIQUE constraint was failing so make the explicit check above for presence of uid
         self.cursor.execute('''
@@ -114,22 +121,22 @@ class Manager:
 
     def adjust_muon(self, uid, amt):
 
-        self.cursor.execute('''SELECT * FROM stats WHERE uid = ?''', (uid,))
+        self.cursor.execute('''SELECT * FROM stats WHERE uid = %s''', (uid,))
         res = self.cursor.fetchone()  # check if user already existed
         if not res:  # we need to add a new entry for them
-            self.cursor.execute('''insert into stats (uid, bux) VALUES (?, ?)''', (uid, amt))
+            self.cursor.execute('''insert into stats (uid, bux) VALUES (%s, %s)''', (uid, amt))
         else:
-            self.cursor.execute('''update stats set muon = MAX(0, muon + ?) where uid = ?''', (amt, uid))
-            # make sure it doesn't go negative
+            self.cursor.execute('''update stats set muon = muon + %s where uid = %s''', (amt, uid))
+            # TODO: establish a negative check once people can spend muon (lol)
 
         self.db.commit()
 
     def add_reminder(self, uid, message, channel_id, delay):
 
-        delaystr = f"+{delay} seconds"
+        delaystr = f"{delay} seconds"
         self.cursor.execute(f'''
-        insert into reminders (uid, message, channel_id, timestamp) values(?, ?, ?, datetime("now", "{delaystr}"))''',
-                            (uid, message, channel_id))
+        insert into reminders (uid, message, channel_id, timestamp) values(%s, %s, %s, NOW() + interval %s)''',
+                            (uid, message, channel_id, delaystr))
         # need to use an f-string to calculate the delay in the datetime function
         self.db.commit()
 
@@ -137,8 +144,8 @@ class Manager:
 
         """Delete reminders that are in the past from the db, to be run on bot startup"""
 
-        self.cursor.execute('''delete from reminders where timestamp < datetime("now") or timestamp is null''')
-        self.cursor.execute('''delete from reminders where timestamp > datetime("now", "100 years")''')
+        self.cursor.execute('''delete from reminders where timestamp < NOW() or timestamp is null''')
+        self.cursor.execute('''delete from reminders where timestamp > NOW() + interval '100 years' ''')
         # also catch null timestamp for when the command was entered wrong
         self.db.commit()
 
@@ -147,19 +154,19 @@ class Manager:
         """return a list of tuples of all reminders whose time is greater than now (seconds since epoch)"""
 
         self.cursor.execute('''select * from reminders 
-        where timestamp > datetime("now")
-        and timestamp < datetime("now","1 hour")''')
+        where timestamp > NOW()
+        and timestamp < NOW() + interval '1 hour' ''')
         return self.cursor.fetchall()
 
     def insert_monitored(self, tag, channel, last=None):
 
         """From gelbooru module: add a tag to constantly check gelbooru for"""
         if not last:
-            self.cursor.execute('''insert into monitored (tag, channel_id) values(?,?)''', (tag, channel))
+            self.cursor.execute('''insert into monitored (tag, channel_id) values(%s,%s)''', (tag, channel))
         else:
             #  used to update the last-seen md5
             self.cursor.execute(
-                '''update monitored set last = ? where tag = ? and channel_id = ?''', (last, tag, channel))
+                '''update monitored set last = %s where tag = %s and channel_id = %s''', (last, tag, channel))
         self.db.commit()
 
     def get_all_monitored(self):
@@ -171,53 +178,53 @@ class Manager:
 
     def get_last_monitored(self, tag, cid):
 
-        self.cursor.execute('''select tag, last from monitored where tag = ? and channel_id = ?''', (tag, cid))
+        self.cursor.execute('''select tag, last from monitored where tag = %s and channel_id = %s''', (tag, cid))
         return self.cursor.fetchone()
 
     def unmonitor(self, tag):
 
-        self.cursor.execute('''delete from monitored where tag = ?''', (tag,))
+        self.cursor.execute('''delete from monitored where tag = %s''', (tag,))
         self.db.commit()
 
     def log_search(self, uid, tags):
 
-        self.cursor.execute('''insert into searches (uid, tags) values (?, ?)''', (uid, " ".join(tags)))
+        self.cursor.execute('''insert into searches (uid, tags) values (%s, %s)''', (uid, " ".join(tags)))
         self.db.commit()
 
-    def peros_exists(self, uid, chid):
+    def peros_exists(self, uid, chid):  # had to rename the table with lowercase "p" otherwise postgres complains
 
-        res = self.cursor.execute(''' SELECT userid, channelid FROM Peros WHERE userid = ? AND channelid = ? ''', (uid, chid)).fetchone()
+        res = self.cursor.execute(''' SELECT userid, channelid FROM peros WHERE userid = %s AND channelid = %s ''', (uid, chid)).fetchone()
         return False if res is None else True
 
     def adjust_peros(self, uid, chid, amount):
 
         # Check if entry exists in DB
         if not self.peros_exists(uid, chid):
-            self.cursor.execute(''' INSERT INTO Peros (userid, channelid, count) VALUES (?, ?, ?) ''', (uid, chid, amount))
+            self.cursor.execute(''' INSERT INTO peros (userid, channelid, count) VALUES (%s, %s, %s) ''', (uid, chid, amount))
         else:
-            self.cursor.execute('''UPDATE Peros SET count = count + (?) WHERE userid = ? AND channelid = ?''', (amount, uid, chid))
+            self.cursor.execute('''UPDATE peros SET count = count + (%s) WHERE userid = %s AND channelid = %s''', (amount, uid, chid))
         self.db.commit()
 
     def get_peros(self, uid, chid):
 
-        return self.cursor.execute('''SELECT count FROM Peros WHERE userid = ? AND channelid = ?''', (uid, chid)).fetchone()[0]
+        return self.cursor.execute('''SELECT count FROM peros WHERE userid = %s AND channelid = %s''', (uid, chid)).fetchone()[0]
 
     def set_peros(self, uid, chid, peros):
 
-        self.cursor.execute('''INSERT OR REPLACE INTO Peros (userid, channelid, count) VALUES (?, ?, ?)''', (uid, chid, peros))
+        self.cursor.execute('''INSERT OR REPLACE INTO peros (userid, channelid, count) VALUES (%s, %s, %s)''', (uid, chid, peros))
         self.db.commit()
 
     def set_all_peros(self, chid, peros):
 
-        self.cursor.execute('''UPDATE Peros SET count = ? WHERE channelid = ?''', (peros, chid))
+        self.cursor.execute('''UPDATE peros SET count = %s WHERE channelid = %s''', (peros, chid))
         self.db.commit()
 
     def get_peros_for_channels(self, uid, channels):
 
-        qstring = ",".join(["?"]*len(channels))
-        sql = '''SELECT SUM(count) FROM Peros WHERE userid = ? AND channelid IN ({})'''.format(qstring)
+        qstring = ",".join(["%s"]*len(channels))
+        sql = '''SELECT SUM(count) FROM peros WHERE userid = %s AND channelid IN ({})'''.format(qstring)
         # sqlite can't substitute in a list or tuple so we need to build the query string with the appropriate
-        # number of ?'s to satisfy the "IN" query, if passed a comma delimited string it will end up in quote marks
+        # number of %s's to satisfy the "IN" query, if passed a comma delimited string it will end up in quote marks
         # which breaks the query.
         res = self.cursor.execute(sql, ((uid,) + tuple(channels))).fetchone()[0]  # execute with the string we built
         if res is None:
@@ -226,7 +233,7 @@ class Manager:
 
     def gelbooru_stats(self):
 
-        self.cursor.execute('''SELECT uid, tags FROM searches WHERE stime > datetime("now", "-7 days")''')
+        self.cursor.execute('''SELECT uid, tags FROM searches WHERE stime > NOW() - interval '7 days' ''')
         usr_count = defaultdict(lambda: 0)
         tag_count = defaultdict(lambda: 0)
         total = 0  # total searches made
@@ -263,11 +270,11 @@ class Manager:
                     tag = k
             return tag, diff
 
-        self.cursor.execute('''SELECT tags FROM searches WHERE stime > datetime("now", "-7 days")''')
+        self.cursor.execute('''SELECT tags FROM searches WHERE stime > NOW() - interval '7 days' ''')
         d1 = countup(self.cursor.fetchall())
         self.cursor.execute('''SELECT tags FROM searches
-                                WHERE stime > datetime("now", "-14 days")
-                                AND stime < datetime("now", "-7 days")''')
+                                WHERE stime > NOW() - interval '14 days' 
+                                AND stime < NOW() - interval '7 days' ''')
         d2 = countup(self.cursor.fetchall())
 
         return max_diff(d1, d2)
@@ -276,27 +283,27 @@ class Manager:
 
         """Returns the time the user last used 'snek daily'"""
 
-        self.cursor.execute('''SELECT last_time FROM stats WHERE uid = ?''', (uid,))
+        self.cursor.execute('''SELECT last_time FROM stats WHERE uid = %s''', (uid,))
         return self.cursor.fetchone()[0]
 
     def increment_streak(self, uid):
 
-        self.cursor.execute('''UPDATE stats SET level = level + 1 WHERE uid = ?''', (uid,))
+        self.cursor.execute('''UPDATE stats SET level = level + 1 WHERE uid = %s''', (uid,))
         self.db.commit()
 
     def get_streak(self, uid):
 
-        self.cursor.execute('''SELECT level FROM stats WHERE uid = ?''', (uid,))
+        self.cursor.execute('''SELECT level FROM stats WHERE uid = %s''', (uid,))
         return self.cursor.fetchone()[0]
 
     def reset_streak(self, uid):
 
-        self.cursor.execute('''UPDATE stats SET level = 0 WHERE uid = ?''', (uid,))
+        self.cursor.execute('''UPDATE stats SET level = 0 WHERE uid = %s''', (uid,))
         self.db.commit()
 
     def increment_daily_time(self, uid, tm):
 
-        self.cursor.execute('''UPDATE stats SET last_time = ? WHERE uid = ?''', (tm, uid))
+        self.cursor.execute('''UPDATE stats SET last_time = %s WHERE uid = %s''', (tm, uid))
         self.db.commit()
 
     def increment_post_pero(self, post_id, channel_id, increment):
@@ -311,10 +318,10 @@ class Manager:
         """
 
         self.cursor.execute('''INSERT OR IGNORE INTO most_peroed (postid, channel, count)
-                               VALUES (?, ?, ?)''', (post_id, channel_id, 0))
+                               VALUES (%s, %s, %s)''', (post_id, channel_id, 0))
         # always try to create a new entry but silently ignore it if there's a conflict with pre-existing
         self.cursor.execute('''UPDATE most_peroed 
-                               SET count = count + ? WHERE postid = ?''', (increment, post_id))
+                               SET count = count + %s WHERE postid = %s''', (increment, post_id))
         # now we have definitely made the entry there is always something to update
         self.db.commit()
 
@@ -331,42 +338,43 @@ class Manager:
 
         """Returns (channel id, post id) of all posts with more than 5 peros for addition of image links."""
 
-        self.cursor.execute('''SELECT postid, channel FROM most_peroed WHERE count > ? and image_url is NULL''',
+        self.cursor.execute('''SELECT postid, channel FROM most_peroed WHERE count > %s and image_url is NULL''',
                             (threshold,))
         return self.cursor.fetchall()
 
     def get_gallery_links(self, threshold=4):
 
-        self.cursor.execute('''SELECT thumb, image_url FROM most_peroed WHERE count > ?''', (threshold,))
+        self.cursor.execute('''SELECT thumb, image_url FROM most_peroed WHERE count > %s''', (threshold,))
         return self.cursor.fetchall()
 
     def add_image_link(self, postid, channel, lnk, thumb, failed=False):
 
         if failed:  # a value of 0 means we have visited this link before but it didn't resolve to a downloadable image
-            self.cursor.execute('''UPDATE most_peroed SET image_url = 0, thumb = 0 WHERE postid = ? AND channel = ?''',
+            self.cursor.execute('''UPDATE most_peroed SET image_url = 0, thumb = 0 WHERE postid = %s AND channel = %s''',
                                 (postid, channel))
         else:
-            self.cursor.execute('''UPDATE most_peroed SET image_url = ?, thumb = ? WHERE postid = ? AND channel = ?''',
+            self.cursor.execute('''UPDATE most_peroed SET image_url = %s, thumb = %s WHERE postid = %s AND channel = %s''',
                                 (lnk, thumb, postid, channel))
         self.db.commit()
 
     def mark_as_downloaded(self, channelid, postid):
 
-        self.cursor.execute('''UPDATE most_peroed SET done = 1 WHERE postid = ? AND channel = ?''', (channelid, postid))
+        self.cursor.execute('''UPDATE most_peroed SET done = 1 WHERE postid = %s AND channel = %s''', (channelid, postid))
         self.db.commit()
 
     def remove_pero_post(self, postid):
 
         """For removing a post entry"""
 
-        self.cursor.execute('''DELETE from most_peroed WHERE postid = ?''', (postid,))
+        self.cursor.execute('''DELETE from most_peroed WHERE postid = %s''', (postid,))
         self.db.commit()
 
     def now(self):
 
         """Returns the time now according to the SQL DB"""
 
-        self.cursor.execute('''SELECT datetime("now")''')
+        #self.cursor.execute('''SELECT datetime("now")''')
+        self.cursor.execute('''SELECT NOW()''')  # for postgres
         return self.cursor.fetchone()
 
     def anticipate_shop_activation(self, uid, rand, uname):
@@ -374,10 +382,10 @@ class Manager:
         """Stores a number to expect from a user using the web interface. When this number
         is received on the web page it is used to associate the cookie ID with the discord ID"""
         # TODO: insert or update
-        self.cursor.execute('''UPDATE shop SET (rand, uname, cookie) = (?, ?, NULL) where UID = ?''', (rand, uname, uid))
+        self.cursor.execute('''UPDATE shop SET (rand, uname, cookie) = (%s, %s, NULL) where UID = %s''', (rand, uname, uid))
         # we need to put the user's display name in the table so the web interface knows what to call the user
         # if the user has no pre-existing entry we need to make one though:
-        self.cursor.execute('''INSERT INTO shop (uid, rand, uname) SELECT ?, ?, ? WHERE (SELECT CHANGES() = 0)''',
+        self.cursor.execute('''INSERT INTO shop (uid, rand, uname) SELECT %s, %s, %s WHERE (SELECT CHANGES() = 0)''',
                             (uid, rand, uname))
 
         self.db.commit()  # MUST commit change so that it's visible to the web code
@@ -386,9 +394,11 @@ class Manager:
 
         for x in als:
 
-            self.cursor.execute('''INSERT OR IGNORE INTO tags (tag, count) VALUES (?, ?)''', (x, 0))
+            #self.cursor.execute('''INSERT OR IGNORE INTO tags (tag, count) VALUES (%s, %s)''', (x, 0))
+            self.cursor.execute('''INSERT INTO tags (tag, count) VALUES (%s, %s)
+            ON CONFLICT (tag) DO NOTHING''', (x, 0))  # insert or ignore is sqlite-specific
             # always try to create a new entry but silently ignore it if there's a conflict with pre-existing
-            self.cursor.execute('''UPDATE tags SET count = count + 1 WHERE tag = ?''', (x,))
+            self.cursor.execute('''UPDATE tags SET count = count + 1 WHERE tag = %s''', (x,))
             # now we have definitely made the entry there is always something to update
 
         self.db.commit()
@@ -399,19 +409,19 @@ class Manager:
 
         for x in als:
 
-            self.cursor.execute('''SELECT SUM(paid) FROM stonks WHERE tag = ?''', (x,))
+            self.cursor.execute('''SELECT SUM(paid) FROM stonks WHERE tag = %s''', (x,))
             total_value = self.cursor.fetchone()[0]
             if not total_value:
                 continue
             # TODO: do this all inside SQLite
-            self.cursor.execute('''SELECT DISTINCT uid FROM stonks WHERE tag = ?''', (x,))
+            self.cursor.execute('''SELECT DISTINCT uid FROM stonks WHERE tag = %s''', (x,))
             lst = list(self.cursor.fetchall())
             for q in lst:
                 q = str(q[0])  # unpack tuple, there really must be a better way to do this
-                self.cursor.execute('''SELECT paid FROM stonks WHERE uid = ? AND tag = ?''', (q, x))
+                self.cursor.execute('''SELECT paid FROM stonks WHERE uid = %s AND tag = %s''', (q, x))
                 z = self.cursor.fetchone()[0]
                 dividend = int(float(z)/total_value * 50)
-                self.cursor.execute('''UPDATE stonks SET return = return + ? WHERE uid = ? AND tag = ?''',
+                self.cursor.execute('''UPDATE stonks SET return = return + %s WHERE uid = %s AND tag = %s''',
                                     (dividend, q, x))
 
         self.db.commit()
@@ -424,16 +434,16 @@ class Manager:
         # or if they are trying to sell more stonk than they have
         # -ve or +ve numbers will be handled appropriately here
 
-        #self.cursor.execute('''INSERT OR IGNORE INTO stonks (uid, tag, paid) VALUES (?, ?, 0)''',
+        #self.cursor.execute('''INSERT OR IGNORE INTO stonks (uid, tag, paid) VALUES (%s, %s, 0)''',
                             #(uid, tag))
-        self.cursor.execute('''SELECT paid FROM stonks WHERE uid = ? and tag = ?''', (uid, tag))
+        self.cursor.execute('''SELECT paid FROM stonks WHERE uid = %s and tag = %s''', (uid, tag))
         r = self.cursor.fetchone()
         if not r:
-            self.cursor.execute('''INSERT INTO stonks (uid, tag, paid, return) VALUES (?, ?, 0, 0)''', (uid, tag))
+            self.cursor.execute('''INSERT INTO stonks (uid, tag, paid, return) VALUES (%s, %s, 0, 0)''', (uid, tag))
 
         self.cursor.execute('''UPDATE stonks
-                                SET paid = paid + ?
-                                WHERE tag = ? AND uid = ?''', (cost, tag, uid))
+                                SET paid = paid + %s
+                                WHERE tag = %s AND uid = %s''', (cost, tag, uid))
 
         self.cursor.execute('''DELETE FROM stonks WHERE paid = 0''')
         # might have sold everything, so don't leave zero values hanging around
@@ -442,16 +452,16 @@ class Manager:
 
     def get_stonk(self, uid, tag):
 
-        self.cursor.execute('''SELECT paid FROM stonks WHERE tag = ? AND UID = ?''', (tag, uid))
+        self.cursor.execute('''SELECT paid FROM stonks WHERE tag = %s AND UID = %s''', (tag, uid))
         res = self.cursor.fetchone()
         if res:
             return res[0]
 
     def calculate_equity(self, uid, tag):
 
-        self.cursor.execute('''SELECT paid FROM stonks WHERE tag = ? and uid = ?''', (tag, uid))
+        self.cursor.execute('''SELECT paid FROM stonks WHERE tag = %s and uid = %s''', (tag, uid))
         user_amt = self.cursor.fetchone()
-        self.cursor.execute('''SELECT SUM(paid) FROM stonks WHERE tag = ?''', (tag,))
+        self.cursor.execute('''SELECT SUM(paid) FROM stonks WHERE tag = %s''', (tag,))
         total_amt = self.cursor.fetchone()[0]
         if total_amt == 0 or user_amt is None:
             return 0
@@ -461,28 +471,28 @@ class Manager:
 
     def get_portfolio(self, uid):
 
-        self.cursor.execute('''SELECT tag, paid FROM stonks WHERE uid = ?''', (uid,))
+        self.cursor.execute('''SELECT tag, paid FROM stonks WHERE uid = %s''', (uid,))
         return self.cursor.fetchall()
 
     def pay_dividend(self, uid):
 
         """Transfer all of user's tag returns into their main snekbux balance"""
 
-        self.cursor.execute('''SELECT * FROM stonks WHERE uid = ?''', (uid,))
+        self.cursor.execute('''SELECT * FROM stonks WHERE uid = %s''', (uid,))
         res = self.cursor.fetchone()  # need to check if the user actually has any stonks
         if not res:
             return 0
 
         self.cursor.execute('''UPDATE stats SET bux = bux +
-                            (SELECT SUM(return) FROM stonks WHERE uid = ?)
-                            WHERE uid = ?''', (uid, uid))
+                            (SELECT SUM(return) FROM stonks WHERE uid = %s)
+                            WHERE uid = %s''', (uid, uid))
 
         ### dividend logging function ###
         self.cursor.execute('''INSERT INTO buxlog (uid, amt) VALUES (
-                                        ? ,(SELECT SUM(return) FROM stonks WHERE uid = ?)
+                                        %s ,(SELECT SUM(return) FROM stonks WHERE uid = %s)
                                         )''', (uid, uid))
 
-        self.cursor.execute('''UPDATE stonks SET return = 0 WHERE uid = ?''', (uid,))
+        self.cursor.execute('''UPDATE stonks SET return = 0 WHERE uid = %s''', (uid,))
 
 
 
@@ -501,7 +511,9 @@ class Manager:
 
     def monitor_tag_deltas(self):
 
-        self.cursor.executescript(
+        # psycopg2 doesn't have "executescript", just change to "execute"
+        # also changed the last CREATE TABLE
+        self.cursor.execute(
             '''CREATE TABLE chng AS 
             SELECT tags.tag, tags."count", tags2."count" AS "newcount", 0 AS "change"
             FROM tags 
@@ -510,24 +522,24 @@ class Manager:
             INSERT INTO tag_deltas SELECT "tag", "change", CURRENT_TIMESTAMP FROM chng WHERE "change" != 0;
             DROP TABLE chng;
             DROP TABLE tags2;
-            CREATE TABLE tags2 AS SELECT * FROM tags;
+            CREATE TABLE tags2 AS TABLE tags;
             '''
         )
         self.db.commit()
 
     def add_card(self, uid, card):
 
-        self.cursor.execute('''UPDATE cards SET owner = ? WHERE serial = ?''', (uid, card))
+        self.cursor.execute('''UPDATE cards SET owner = %s WHERE serial = %s''', (uid, card))
         self.db.commit()
 
     def remove_card(self, card):
 
-        self.cursor.execute('''UPDATE cards SET owner = NULL WHERE serial = ?''', (card,))
+        self.cursor.execute('''UPDATE cards SET owner = NULL WHERE serial = %s''', (card,))
         self.db.commit()
 
     def get_cards(self, uid):
 
-        self.cursor.execute('''SELECT serial, series FROM cards WHERE owner = ?''', (uid,))
+        self.cursor.execute('''SELECT serial, series FROM cards WHERE owner = %s''', (uid,))
         return self.cursor.fetchall()
 
     def random_unowned_card(self):
@@ -541,14 +553,15 @@ class Manager:
 
     def get_uids_with_cards(self):
 
-        self.cursor.execute('''SELECT DISTINCT owner FROM cards WHERE owner NOT NULL''')
+        self.cursor.execute('''SELECT DISTINCT owner FROM cards WHERE owner IS NOT NULL''')
+        #  changed to IS NOT NULL for posgres
         return [x[0] for x in self.cursor.fetchall()]
 
     def update_card_trader_names(self, adict):
 
         self.cursor.execute('''DELETE FROM names''')
         for k, v in adict.items():  # dict of uid: screen name
-            self.cursor.execute('''INSERT INTO names (uid, screen_name) VALUES (?, ?)''', (k ,v))
+            self.cursor.execute('''INSERT INTO names (uid, screen_name) VALUES (%s, %s)''', (k ,v))
         self.db.commit()
 
     def verify_ownership(self, serial_list, owner1, owner2=None):
@@ -573,7 +586,7 @@ class Manager:
 
     def verify_ownership_single(self, card, uid):
 
-        self.cursor.execute('''SELECT owner FROM cards WHERE serial = ?''', (int(card),))
+        self.cursor.execute('''SELECT owner FROM cards WHERE serial = %s''', (int(card),))
         res = self.cursor.fetchall()
         print("result from owner chec")
         print(res)
@@ -586,7 +599,7 @@ class Manager:
 
     def serial_to_name(self, serial):
 
-        self.cursor.execute('''SELECT card_name FROM cards WHERE serial = ?''', (int(serial),))
+        self.cursor.execute('''SELECT card_name FROM cards WHERE serial = %s''', (int(serial),))
         res = self.cursor.fetchone()
         if res:
             return res[0]
@@ -601,8 +614,8 @@ class Manager:
         print("a tuple", a_tuple)
         print("b tuple", b_tuple)
 
-        self.cursor.execute(f'''UPDATE cards SET owner = ? WHERE serial IN ({a_tuple})''', (b, ))
-        self.cursor.execute(f'''UPDATE cards SET owner = ? WHERE serial IN ({b_tuple})''', (a, ))
+        self.cursor.execute(f'''UPDATE cards SET owner = %s WHERE serial IN ({a_tuple})''', (b, ))
+        self.cursor.execute(f'''UPDATE cards SET owner = %s WHERE serial IN ({b_tuple})''', (a, ))
 
         self.db.commit()
 
@@ -622,11 +635,11 @@ class Manager:
             b = None
 
         print(f"Distctinct owners are {a} and {b}")
-        self.cursor.execute(f'''SELECT serial FROM cards WHERE serial IN {query_tuple} AND owner = ?''', (a, ))
+        self.cursor.execute(f'''SELECT serial FROM cards WHERE serial IN {query_tuple} AND owner = %s''', (a, ))
         a_cards = [x[0] for x in self.cursor.fetchall()]
         print("A's cards", a_cards)
         if b:
-            self.cursor.execute(f'''SELECT serial FROM cards WHERE serial IN {query_tuple} AND owner = ?''', (b,))
+            self.cursor.execute(f'''SELECT serial FROM cards WHERE serial IN {query_tuple} AND owner = %s''', (b,))
             b_cards = [x[0] for x in self.cursor.fetchall()]
         else:
             b_cards = []
@@ -638,7 +651,7 @@ class Manager:
     def card_search(self, astr):
 
         words = astr.split(" ")
-        part = '''(card_name LIKE ? OR series LIKE ?)'''
+        part = '''(card_name LIKE %s OR series LIKE %s)'''
         start = '''SELECT serial, screen_name, card_name, series FROM cards 
                     INNER JOIN names ON 
                     names.uid = cards.owner WHERE'''
@@ -656,6 +669,8 @@ class Manager:
 
     def get_graph_data(self, tag, time_ago=14):
 
+        # TODO: the timestamps are wacky!!
+
         """compiles a list of data points to plot a graph of a tag's trend over time. Returns a cumulative sum
         by date that the tag deltas table was updated."""
 
@@ -663,22 +678,27 @@ class Manager:
             raise TypeError("time delta must be an integer number of days")
             # need to be careful with this as an f-string for SQL substitution is being manually assembled
 
-        time_modifier = f"-{time_ago} days"
+        #time_modifier = f"-{time_ago} days"
+        time_modifier = f"{time_ago} days"
 
-        self.cursor.execute('''SELECT datetime(CURRENT_TIMESTAMP, ?), SUM(change) FROM tag_deltas
-        WHERE tag = ?
-        AND time < datetime(CURRENT_TIMESTAMP, ?)''', (time_modifier, tag, time_modifier))
+        #self.cursor.execute('''SELECT datetime(CURRENT_TIMESTAMP, %s), SUM(change) FROM tag_deltas
+        #WHERE tag = %s
+        #AND time < datetime(CURRENT_TIMESTAMP, %s)''', (time_modifier, tag, time_modifier))
+
+        self.cursor.execute('''SELECT NOW() - interval %s, SUM(change) FROM tag_deltas
+        WHERE tag = %s AND time < NOW() - interval %s''', (time_modifier, tag, time_modifier))
         # this gives the cumulative value up to that point, as the start value for the plot
 
         qq = self.cursor.fetchall()
         if not qq[0][1]:
             return
         start_value = int(qq[0][1])
-        start_date = datetime.datetime.strptime(qq[0][0][:16], "%Y-%m-%d %H:%M")
+        #start_date = datetime.datetime.strptime(qq[0][0][:16], "%Y-%m-%d %H:%M")
+        start_date = qq[0][0]
 
         self.cursor.execute('''SELECT time, change FROM tag_deltas
-        WHERE tag = ?
-        and time > datetime(CURRENT_TIMESTAMP, ?)''', (tag, time_modifier))
+        WHERE tag = %s
+        and time > NOW() - interval %s''', (tag, time_modifier))
         res = self.cursor.fetchall()
 
         cumulatives = [start_value]
@@ -687,7 +707,8 @@ class Manager:
         for x in res:
             new = cumulatives[-1] + x[1]  # add the delta to the last value to get a cumulative sum
             cumulatives.append(new)
-            dates.append(datetime.datetime.strptime(x[0][:16], "%Y-%m-%d %H:%M"))
+            #dates.append(datetime.datetime.strptime(x[0][:16], "%Y-%m-%d %H:%M"))
+            dates.append(x[0])
 
         return dates, cumulatives
 
@@ -695,16 +716,16 @@ class Manager:
 
         """For showing a user's wealth over time"""
 
-        self.cursor.execute('''SELECT bux FROM stats WHERE uid = ?''', (uid,))
+        self.cursor.execute('''SELECT bux FROM stats WHERE uid = %s''', (uid,))
         bux_now = self.cursor.fetchall()[0][0]
 
-        self.cursor.execute('''SELECT date, amt FROM buxlog WHERE uid = ? ORDER BY date DESC''', (uid,))
+        self.cursor.execute('''SELECT date, amt FROM buxlog WHERE uid = %s ORDER BY date DESC''', (uid,))
         points = []
         dates = []
         b = bux_now
         for date, amt in self.cursor.fetchall():
             bux_next = b - amt
-            date = datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S")
+            #date = datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S")
             points.append(b)
             dates.append(date)
             b = bux_next

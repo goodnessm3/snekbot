@@ -33,12 +33,9 @@ else:
         settings = json.load(f)
     bot = commands.Bot(command_prefix=prefixes, intents=intents)
 
-
-bot.buxman = Manager(bot)
 bot.settings = settings
-# bot.sesh = aiohttp.ClientSession(loop=bot.loop)
-# this has been moved to an "async with" statement in the gelbooru cog so that the
-# session is created inside an async function
+bot.buxman = Manager(bot)
+
 cb = CleverWrap(settings["cleverbot_token"])
 bot.last_chat = datetime.datetime.now()  # to determine when to reset the cleverbot interaction
 bot.cbchannels = settings["cleverbot_channels"]

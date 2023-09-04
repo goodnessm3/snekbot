@@ -4,7 +4,6 @@ import asyncio
 from collections import defaultdict
 from math import ceil
 from PIL import Image, ImageFont, ImageDraw
-import shutil
 import os
 import time
 import re
@@ -126,6 +125,7 @@ class Tcg(commands.Cog):
             out += f"#{k} - {nm}, current high bid: {price}, time remaining: {time_print(tm)}\n"
 
         if len(self.auctioned_cards.keys()) > 0:
+            ''' #TODO
             pilimage = self.make_card_summary({"":list(self.auctioned_cards.keys())}, small=True)
 
             save_name = str(int(time.time()))[-8:]  # unique enough
@@ -133,6 +133,7 @@ class Tcg(commands.Cog):
             #pilimage.save(f"C:\\s\\tcg\\{save_name}.jpg")
 
             out += f"http://raibu.streams.moe/card_summaries/{save_name}.jpg"
+            '''
 
         return out
 
@@ -152,10 +153,7 @@ class Tcg(commands.Cog):
         self.offered_cards.append(serial)
         self.auction_times[serial] = time.time() + dur_secs
 
-        if not os.path.exists(f"/var/www/html/cards/{serial}.jpg"):
-            shutil.move(f"/home/rargh/cards/{serial}.jpg", f"/var/www/html/cards/{serial}.jpg")
-
-        card_link = f"http://raibu.streams.moe/cards/{serial}.jpg"
+        card_link = f"http://raibu.streams.moe/cards/{serial}.jpg"  # all cards are uploaded to /var/www and always avb
 
         await self.chan.send(f"{random.choice(NPC_NAMES)} is selling a card! Bidding starts at {price} "
                                        f"snekbux. The auction will last for {duration} days. {card_link}")
@@ -374,10 +372,6 @@ class Tcg(commands.Cog):
             return
         self.bot.buxman.add_card(uid, card)
 
-        if not os.path.exists(f"/var/www/html/cards/{card}.jpg"):
-            shutil.move(f"/home/rargh/cards/{card}.jpg", f"/var/www/html/cards/{card}.jpg")
-            # move from card repository into somewhere they can actually be served from
-
         await channel.send(f"{payload.member.mention}, claimed the loot crate! It contained this card. Type 'snek cards'"
                                 f"to see all your cards. http://raibu.streams.moe/cards/{card}.jpg")
 
@@ -574,7 +568,8 @@ class Tcg(commands.Cog):
             else:
                 done.append(k)
                 for q in v:
-                    #image_path = f"C:\\s\\tcg\\cards\\{str(q).zfill(5)}.jpg"  #  for testing
+                    # TODO
+                    continue  # defuse opening of images below that won't be found
                     image_path = f"/var/www/html/cards/{q}.jpg"
                     im = Image.open(image_path)
                     black.paste(im, (x, y))
@@ -622,8 +617,7 @@ class Tcg(commands.Cog):
                 await ctx.message.channel.send("All cards have been claimed! Wait for pchem to burn some!")
                 return
             self.bot.buxman.add_card(uid, card)
-            if not os.path.exists(f"/var/www/html/cards/{card}.jpg"):  # it's a new card and needs to be relocated
-                shutil.move(f"/home/rargh/cards/{card}.jpg", f"/var/www/html/cards/{card}.jpg")
+
             await ctx.message.channel.send(f'''{ctx.message.author.mention}, you bought a loot crate for {cost}'''
                                             f''' snekbux and it contained: http://raibu.streams.moe/cards/{card}.jpg''')
         else:
@@ -639,7 +633,7 @@ class Tcg(commands.Cog):
 
         self.crate_cost[uid] =  self.crate_cost[uid] + 200  # slowly ramp up cost and have it decay back down
 
-    @commands.command()
+    # @commands.command() todo - image generation for trade proposal
     async def trade(self, ctx, *args):
 
         if ctx.message.author.id in self.waiting_for_response.values():
@@ -695,7 +689,7 @@ class Tcg(commands.Cog):
         # a and b are ID's of the traders, probably put this on the image too one day
         img = self.make_trade_image(ser1, ser2)
         trade_name = str(int(time.time()))[-8:]
-        img.save(f"/var/www/html/trades/{trade_name}.jpg")
+        img.save(f"/var/www/html/trades/{trade_name}.jpg")  # todo!!!
 
         await ctx.message.channel.send(f"http://raibu.streams.moe/trades/{trade_name}.jpg")
         m = await ctx.message.channel.send(f"{args[0]}, do you accept the trade? Click the react to accept or decline."
@@ -800,10 +794,10 @@ class Tcg(commands.Cog):
 
         dict_for_layout = {"blank": args}
         print(dict_for_layout)
-        pict = self.make_card_summary(dict_for_layout)
-        save_name = str(int(time.time()))[-8:]  # unique enough
-        pict.save(f"/var/www/html/card_summaries/{save_name}.jpg")
-        picturl = f"http://raibu.streams.moe/card_summaries/{save_name}.jpg"
+        #pict = self.make_card_summary(dict_for_layout) #todo!!!
+        #save_name = str(int(time.time()))[-8:]  # unique enough
+        #pict.save(f"/var/www/html/card_summaries/{save_name}.jpg")
+        #picturl = f"http://raibu.streams.moe/card_summaries/{save_name}.jpg"
 
         reason = random.choice(muon_uses)
         mu = len(set(args)) * 12  # set to stop people being cheeky and claiming multiple times
@@ -812,7 +806,7 @@ class Tcg(commands.Cog):
             self.bot.buxman.remove_card(q)
 
         msg = f"{ctx.message.author.mention}, you burned these cards, returning them to the pool! You have gained {mu}" \
-              f" muon. Muon can be used to {reason}! {picturl}"
+              f" muon. Muon can be used to {reason}! No images generated right now, just use your imagination."
 
         await ctx.message.channel.send(msg)
 

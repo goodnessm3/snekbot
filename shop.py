@@ -4,6 +4,10 @@ import discord
 import os
 import asyncio
 
+'''
+This has been retired so that snek can live in a different place than the website, reading a local file for
+instructions from the web shop would no longer work.
+'''
 
 class Shop(commands.Cog):
 
