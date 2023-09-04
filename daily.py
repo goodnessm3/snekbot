@@ -1,7 +1,7 @@
 from discord.ext import commands
 import datetime
 import time
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from io import BytesIO
 import discord
 
@@ -77,6 +77,7 @@ class Daily(commands.Cog):
         mn = datetime.datetime.combine(now.date(), datetime.time(23, 59, 59))
         return str(mn - now)[:8]
 
+    '''  # temporarily disable plotting
     @commands.command()
     async def bux_history(self, ctx):
 
@@ -97,7 +98,7 @@ class Daily(commands.Cog):
 
         await ctx.message.channel.send(file=discord.File(buffer, filename="graph.png"))
         # we need to provide a filename so it's correctly detected as a .png and shown as an image
-
+    '''
 
 
 
