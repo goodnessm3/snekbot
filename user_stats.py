@@ -193,7 +193,8 @@ class Manager:
 
     def peros_exists(self, uid, chid):  # had to rename the table with lowercase "p" otherwise postgres complains
 
-        res = self.cursor.execute(''' SELECT userid, channelid FROM peros WHERE userid = %s AND channelid = %s ''', (uid, chid)).fetchone()
+        self.cursor.execute('''SELECT userid, channelid FROM peros WHERE userid = %s AND channelid = %s''', (uid, chid))
+        res = self.cursor.fetchone()
         return False if res is None else True
 
     def adjust_peros(self, uid, chid, amount):
