@@ -318,8 +318,13 @@ class Manager:
 
         """
 
-        self.cursor.execute('''INSERT OR IGNORE INTO most_peroed (postid, channel, count)
-                               VALUES (%s, %s, %s)''', (post_id, channel_id, 0))
+        #self.cursor.execute('''INSERT OR IGNORE INTO most_peroed (postid, channel, count)
+                               # VALUES (%s, %s, %s)''', (post_id, channel_id, 0))  # old sqlite code
+
+        self.cursor.execute('''INSERT INTO most_peroed (postid, channel, count)
+                                VALUES (%s, %s, %s) ON CONFLICT (postid) DO NOTHING''', (post_id, channel_id, 0))
+        # postgresql way
+
         # always try to create a new entry but silently ignore it if there's a conflict with pre-existing
         self.cursor.execute('''UPDATE most_peroed 
                                SET count = count + %s WHERE postid = %s''', (increment, post_id))
