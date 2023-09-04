@@ -37,7 +37,7 @@ class Gelbooru(commands.Cog):
         # number of seconds to wait before querying, gradually increases if no new tag is found
         self.tag_hashes = []  # don't distribute dividend for the same image searched twice within a period of time
 
-        self.serv = Tree_Server(self.bot.settings["tagserver_url"], 2012)
+        # self.serv = Tree_Server(self.bot.settings["tagserver_url"], 2012) # RIP
 
         self.recent_image_user = None  # the USER who caused the most recent image to be posted
 
@@ -64,12 +64,14 @@ class Gelbooru(commands.Cog):
             await self.last_pic.delete()
             self.last_pic = None
 
+    '''
     @commands.command()
     async def nr_tags(self, ctx):
         try:
             await ctx.message.channel.send("I currently know " + str(await self.serv.get_nr_tags()) + " tags")
         except:
             await ctx.message.channel.send("I am not connected to any server!")
+    '''
 
     @commands.command()
     # @commands.cooldown(1, 120, type=commands.BucketType.user)
@@ -135,10 +137,12 @@ class Gelbooru(commands.Cog):
         if not tag_list:
             return  # no tags because the search gave 0 results
         tags = tag_list.split(" ")
+        '''
         try:
             await self.serv.add_tag(tags)
         except:
             pass  # tag server not talking to us
+        '''
         self.dbman.log_tags(tags)  # a record of how many times each tag came up
 
         hashed = hash("".join(tags))
@@ -162,11 +166,14 @@ class Gelbooru(commands.Cog):
                 tagpool = self.fallback_tags
             else:
                 tagpool = tagpool.split(" ")
-            candidates = []
+            #candidates = []
+            '''
             try:  # todo add async with timeout
                 candidates.append(await self.serv.get_random_tag())
             except:
                 candidates = random.sample(tagpool, min(3, len(tagpool)))
+            '''
+            candidates = random.sample(tagpool, min(3, len(tagpool)))  # TODO: random sample from the database
             out += "I searched for: {}".format(", ".join(candidates))
 
             args = candidates
