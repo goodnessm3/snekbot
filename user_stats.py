@@ -208,11 +208,14 @@ class Manager:
 
     def get_peros(self, uid, chid):
 
-        return self.cursor.execute('''SELECT count FROM peros WHERE userid = %s AND channelid = %s''', (uid, chid)).fetchone()[0]
+        self.cursor.execute('''SELECT count FROM peros WHERE userid = %s AND channelid = %s''', (uid, chid))
+        if a := self.cursor.fetchone():
+            return a[0]
 
     def set_peros(self, uid, chid, peros):
 
-        self.cursor.execute('''INSERT OR REPLACE INTO peros (userid, channelid, count) VALUES (%s, %s, %s)''', (uid, chid, peros))
+        self.cursor.execute('''INSERT OR REPLACE INTO peros (userid, channelid, count) 
+                                VALUES (%s, %s, %s)''', (uid, chid, peros))
         self.db.commit()
 
     def set_all_peros(self, chid, peros):
@@ -227,10 +230,12 @@ class Manager:
         # sqlite can't substitute in a list or tuple so we need to build the query string with the appropriate
         # number of %s's to satisfy the "IN" query, if passed a comma delimited string it will end up in quote marks
         # which breaks the query.
-        res = self.cursor.execute(sql, ((uid,) + tuple(channels))).fetchone()[0]  # execute with the string we built
-        if res is None:
+        self.cursor.execute(sql, ((uid,) + tuple(channels)))  # execute with the string we built
+        res = self.cursor.fetchone()
+        if res:
+            return res[0]
+        else:
             return 0
-        return res
 
     def gelbooru_stats(self):
 
