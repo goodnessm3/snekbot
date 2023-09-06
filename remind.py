@@ -28,24 +28,31 @@ class Reminder(commands.Cog):
         print("checking for upcoming reminders")
         reminders = self.bot.buxman.get_reminders()  # get all reminders from DB yet to be run
         for rem in reminders:
-            uid, timestamp, message, rid, channel_id = rem
+            uid, timestamp, message, channel_id = rem  # rid column was removed, we don't use it
             chan = self.bot.get_channel(int(channel_id))  # need to recreate the discord object from saved id
             if not chan:  # bot couldn't resolve channel ID, maybe we are in testing mode or lost access to channel
                 print(f"Couldn't set reminder {message} in channel {channel_id}")
                 continue
+
+            # old and busted code below, look how much easier it is now with posgres native datetimes
+            '''
             # future_time = datetime.datetime.fromisoformat(timestamp) # not for 3.7
-            y, m, d = timestamp[:10].split("-")
+            y, m, d = timestamp[:10].split("-")  # AMATEUR HOUR
             h, mi, s = timestamp[11:].split(":")
             future_time = datetime.datetime(int(y), int(m), int(d), int(h), int(mi), int(s))
             # works on earlier python versions
             now_stamp = self.bot.buxman.now()[0]
             y, m, d = now_stamp[:10].split("-")
-            h, mi, s = now_stamp[11:].split(":")
+            h, mi, s = now_stamp[11:].split(":")  
             timenow = datetime.datetime(int(y), int(m), int(d), int(h), int(mi), int(s))
             delay = future_time - timenow
             # self.bot.loop.call_later(int(delay.total_seconds()), lambda: asyncio.ensure_future(chan.send(message)))
             # ^ old method that didn't work, see below
-            await self.enqueue_reminder(chan, int(delay.total_seconds()), message)
+            '''
+
+            delay = timestamp - datetime.datetime.now()  # a timedelta
+            secs = delay.seconds
+            await self.enqueue_reminder(chan, secs, message)
             # for some reason, adding to the loop needs to be farmed out to another async function. If I try to
             # add all the reminders to the loop here, they all send the same message, presumably because they
             # are all referencing the same instance of "message" variable. Look into this more.

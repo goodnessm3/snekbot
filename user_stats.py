@@ -439,6 +439,7 @@ class Manager:
             
 
     def adjust_stonk(self, uid, tag, cost):
+
         """Quantity may be POSITIVE (player is buying) or NEGATIVE (player is selling)"""
 
         # do a check for whether the player has enough bux outside this function, first
@@ -504,8 +505,6 @@ class Manager:
                                         )''', (uid, uid))
 
         self.cursor.execute('''UPDATE stonks SET return = 0 WHERE uid = %s''', (uid,))
-
-
 
         self.db.commit()
 
