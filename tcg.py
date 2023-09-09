@@ -325,8 +325,8 @@ class Tcg(commands.Cog):
 
     async def decrement_counters(self):
 
-        print("Decrementing counters")
-        print(self.random_chances)
+        # print("Decrementing counters")
+        # print(self.random_chances)
         for k, v in self.random_chances.items():
             if v > 0:
                 new_v = int(v/2)  # int 1/2 is zero btw
@@ -336,7 +336,7 @@ class Tcg(commands.Cog):
 
     async def modulate_crate_cost(self):
 
-        print("checking crate cost")
+        # print("checking crate cost")
         for k, v in self.crate_cost.items():
             if v > 2500:
                 self.crate_cost[k] = v-100
