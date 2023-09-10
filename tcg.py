@@ -340,7 +340,7 @@ class Tcg(commands.Cog):
         for k, v in self.crate_cost.items():
             if v > 2500:
                 self.crate_cost[k] = v-100
-        print(self.crate_cost)
+        # print(self.crate_cost)
 
         self.bot.loop.call_later(CRATE_COST_TIME, lambda: asyncio.ensure_future(self.modulate_crate_cost()))
 
@@ -535,20 +535,20 @@ class Tcg(commands.Cog):
             serial, series = x
             serial = str(serial).zfill(5)  # leading zeroes
             dict_for_layout[series].append(serial)
-        pilimage = self.make_card_summary(dict_for_layout)
+        # pilimage = self.make_card_summary(dict_for_layout)
 
-        max_name = len(os.listdir("/var/www/html/card_summaries/"))
-        save_name = str(int(time.time()))[-8:]  # unique enough
+        # max_name = len(os.listdir("/var/www/html/card_summaries/"))
+        # save_name = str(int(time.time()))[-8:]  # unique enough
 
-        pilimage.save(f"/var/www/html/card_summaries/{save_name}.jpg")
+        # pilimage.save(f"/var/www/html/card_summaries/{save_name}.jpg")
         #pilimage.save(f"C:\\s\\tcg\\{uid}.jpg")  # for testing
 
-        await ctx.message.channel.send(f"http://raibu.streams.moe/card_summaries/{save_name}.jpg")
+        # await ctx.message.channel.send(f"http://raibu.streams.moe/card_summaries/{save_name}.jpg")
+        await ctx.message.channel.send("card image generation disabled currently")
 
     def make_card_summary(self, files, small=False):
 
         """Expects a dictionary of series:files so they can be grouped appropriately"""
-
 
         if small:
             width = min(3000, len(files[""])*300)  # this dict is not keyed by series, just by empty string
