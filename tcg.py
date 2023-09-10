@@ -157,8 +157,8 @@ class Tcg(commands.Cog):
 
         await self.chan.send(f"{random.choice(NPC_NAMES)} is selling a card! Bidding starts at {price} "
                                        f"snekbux. The auction will last for {duration} days. {card_link}")
-        print(self.auction_times)
-        print(self.auctioned_cards)
+        # print(self.auction_times)
+        # print(self.auctioned_cards)
         self.bot.loop.call_later(dur_secs, lambda: asyncio.ensure_future(self.conclude_auction(serial)))
         print(f"Scheduled completion of auction after {dur_secs}s of serial {serial}")
 
@@ -213,8 +213,8 @@ class Tcg(commands.Cog):
         card_link = f"http://raibu.streams.moe/cards/{serial}.jpg"
         await ctx.message.channel.send(f"{ctx.message.author.mention} is selling a card! Bidding starts at {price} "
                                        f"snekbux. The auction will last for {time_print(duration)}. {card_link}")
-        print(self.auction_times)
-        print(self.auctioned_cards)
+        # print(self.auction_times)
+        # print(self.auctioned_cards)
         self.bot.loop.call_later(duration, lambda: asyncio.ensure_future(self.conclude_auction(serial)))
         print(f"Scheduled completion of auction after {duration} of serial {serial}")
 
