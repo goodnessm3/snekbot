@@ -214,8 +214,17 @@ class Manager:
 
     def set_peros(self, uid, chid, peros):
 
-        self.cursor.execute('''INSERT OR REPLACE INTO peros (userid, channelid, count) 
-                                VALUES (%s, %s, %s)''', (uid, chid, peros))
+        # self.cursor.execute('''INSERT OR REPLACE INTO peros (userid, channelid, count)
+        #                         VALUES (%s, %s, %s)''', (uid, chid, peros))
+
+        self.cursor.execute('''INSERT INTO peros (userid, channelid, count)
+        VALUES (%s, %s, %s)
+        ON CONFLICT (userid)
+        DO UPDATE SET count = EXCLUDED.count''')
+
+        # the new postgres way
+        # couldn't we also check with peros_exists?
+
         self.db.commit()
 
     def set_all_peros(self, chid, peros):
