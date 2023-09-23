@@ -750,3 +750,17 @@ class Manager:
             b = bux_next
 
         return dates, points
+
+    def random_image_tags(self):
+
+        results = []
+        while len(results) < 3:
+            self.cursor.execute('''SELECT tag FROM tags 
+                                   WHERE random() < 0.01
+                                   AND count > 100
+                                   LIMIT 3''')
+            # not perfect, but quick. In a loop for the one in a million chance
+            # that we don't get three results the first time
+            results = self.cursor.fetchall()
+
+        return [x[0] for x in results]

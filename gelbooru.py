@@ -161,6 +161,8 @@ class Gelbooru(commands.Cog):
         out = ""
 
         if len(args) == 0 or args[0] == "random":
+
+            '''
             tagpool = self.last_search.get(ctx.message.channel.id, None)
             if not tagpool:
                 tagpool = self.fallback_tags
@@ -168,12 +170,15 @@ class Gelbooru(commands.Cog):
                 tagpool = tagpool.split(" ")
             #candidates = []
             '''
+            '''
             try:  # todo add async with timeout
                 candidates.append(await self.serv.get_random_tag())
             except:
                 candidates = random.sample(tagpool, min(3, len(tagpool)))
             '''
-            candidates = random.sample(tagpool, min(3, len(tagpool)))  # TODO: random sample from the database
+            # candidates = random.sample(tagpool, min(3, len(tagpool)))  # TODO: random sample from the database
+
+            candidates = self.dbman.random_image_tags()
             out += "I searched for: {}".format(", ".join(candidates))
 
             args = candidates
