@@ -220,7 +220,7 @@ class Manager:
         self.cursor.execute('''INSERT INTO peros (userid, channelid, count)
         VALUES (%s, %s, %s)
         ON CONFLICT (userid)
-        DO UPDATE SET count = EXCLUDED.count''')
+        DO UPDATE SET count = EXCLUDED.count''', (uid, chid, peros))
 
         # the new postgres way
         # couldn't we also check with peros_exists?
