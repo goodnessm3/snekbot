@@ -132,7 +132,7 @@ class Tcg(commands.Cog):
             pilimage.save(f"/var/www/html/card_summaries/{save_name}.jpg")
             #pilimage.save(f"C:\\s\\tcg\\{save_name}.jpg")
 
-            out += f"http://raibu.streams.moe/card_summaries/{save_name}.jpg"
+            out += f"{self.bot.settings['website']}/card_summaries/{save_name}.jpg"
             '''
 
         return out
@@ -153,7 +153,7 @@ class Tcg(commands.Cog):
         self.offered_cards.append(serial)
         self.auction_times[serial] = time.time() + dur_secs
 
-        card_link = f"http://raibu.streams.moe/cards/{serial}.jpg"  # all cards are uploaded to /var/www and always avb
+        card_link = f"{self.bot.settings['website']}/cards/{serial}.jpg"  # all cards are uploaded to /var/www and always avb
 
         await self.chan.send(f"{random.choice(NPC_NAMES)} is selling a card! Bidding starts at {price} "
                                        f"snekbux. The auction will last for {duration} days. {card_link}")
@@ -210,7 +210,7 @@ class Tcg(commands.Cog):
         self.card_auctioners[serial] = ctx.message.author.id
         self.offered_cards.append(serial)
         self.auction_times[serial] = time.time() + duration
-        card_link = f"http://raibu.streams.moe/cards/{serial}.jpg"
+        card_link = f"{self.bot.settings['website']}/cards/{serial}.jpg"
         await ctx.message.channel.send(f"{ctx.message.author.mention} is selling a card! Bidding starts at {price} "
                                        f"snekbux. The auction will last for {time_print(duration)}. {card_link}")
         # print(self.auction_times)
@@ -264,7 +264,7 @@ class Tcg(commands.Cog):
         bidder_list.sort(key=lambda x: x[0])
         bidder_list.reverse()  # so we have the big numbers first
         card_name = self.bot.buxman.serial_to_name(serial)
-        card_link = f"http://raibu.streams.moe/cards/{serial}.jpg"
+        card_link = f"{self.bot.settings['website']}/cards/{serial}.jpg"
         print("Bidder list is:")
         print(bidder_list)
         if len(bidder_list) == 1:
@@ -373,7 +373,7 @@ class Tcg(commands.Cog):
         self.bot.buxman.add_card(uid, card)
 
         await channel.send(f"{payload.member.mention}, claimed the loot crate! It contained this card. Type 'snek cards'"
-                                f"to see all your cards. http://raibu.streams.moe/cards/{card}.jpg")
+                                f"to see all your cards. {self.bot.settings['website']}/cards/{card}.jpg")
 
         self.claimed = False
 
@@ -438,7 +438,7 @@ class Tcg(commands.Cog):
         self.bot.buxman.adjust_bux(purchaser, -1 * value)
         self.bot.buxman.add_card(purchaser, serial)
 
-        return True, f"<@{purchaser}> bought a card from <@{recipient}> for {value} snekbux! http://raibu.streams.moe/cards/{serial}.jpg"
+        return True, f"<@{purchaser}> bought a card from <@{recipient}> for {value} snekbux! {self.bot.settings['website']}/cards/{serial}.jpg"
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
@@ -520,7 +520,7 @@ class Tcg(commands.Cog):
         crds = self.bot.buxman.get_cards(uid)
 
         await ctx.message.channel.send(
-            f"Go here to see your card collection: http://raibu.streams.moe/card_summary?user={uid}")
+            f"Go here to see your card collection: {self.bot.settings['website']}/card_summary?user={uid}")
 
         if len(crds) > 100:
             await ctx.message.channel.send("Too many cards to generate a thumbnail.")
@@ -543,7 +543,7 @@ class Tcg(commands.Cog):
         # pilimage.save(f"/var/www/html/card_summaries/{save_name}.jpg")
         #pilimage.save(f"C:\\s\\tcg\\{uid}.jpg")  # for testing
 
-        # await ctx.message.channel.send(f"http://raibu.streams.moe/card_summaries/{save_name}.jpg")
+        # await ctx.message.channel.send(f"{self.bot.settings['website']}/card_summaries/{save_name}.jpg")
         await ctx.message.channel.send("card image generation disabled currently")
 
     def make_card_summary(self, files, small=False):
@@ -619,7 +619,7 @@ class Tcg(commands.Cog):
             self.bot.buxman.add_card(uid, card)
 
             await ctx.message.channel.send(f'''{ctx.message.author.mention}, you bought a loot crate for {cost}'''
-                                            f''' snekbux and it contained: http://raibu.streams.moe/cards/{card}.jpg''')
+                                            f''' snekbux and it contained: {self.bot.settings['website']}/cards/{card}.jpg''')
         else:
             if random.randint(0, 100) < max_rand:
                 won_bux = random.randint(50, 7000)
@@ -641,7 +641,7 @@ class Tcg(commands.Cog):
             return
 
         if not args:
-            await ctx.message.channel.send("go to http://raibu.streams.moe/snekstore/trade_setup to set up a trade.")
+            await ctx.message.channel.send(f"go to {self.bot.settings['website']}/snekstore/trade_setup to set up a trade.")
             return
 
         source_id = ctx.message.author.id
@@ -691,7 +691,7 @@ class Tcg(commands.Cog):
         trade_name = str(int(time.time()))[-8:]
         img.save(f"/var/www/html/trades/{trade_name}.jpg")  # todo!!!
 
-        await ctx.message.channel.send(f"http://raibu.streams.moe/trades/{trade_name}.jpg")
+        await ctx.message.channel.send(f"{self.bot.settings['website']}/trades/{trade_name}.jpg")
         m = await ctx.message.channel.send(f"{args[0]}, do you accept the trade? Click the react to accept or decline."
                                            f" The proposer can also cancel the trade by clicking the react."
                                            f" The trade will automatically time out after 5 minutes.")
@@ -773,7 +773,7 @@ class Tcg(commands.Cog):
         else:
             await ctx.message.channel.send(f"```{restable}```")
 
-        await ctx.message.channel.send("Also go to http://raibu.streams.moe/card_search to more easily view cards!")
+        await ctx.message.channel.send(f"Also go to {self.bot.settings['website']}/card_search to more easily view cards!")
 
     @commands.command()
     @annoy
@@ -797,7 +797,7 @@ class Tcg(commands.Cog):
         #pict = self.make_card_summary(dict_for_layout) #todo!!!
         #save_name = str(int(time.time()))[-8:]  # unique enough
         #pict.save(f"/var/www/html/card_summaries/{save_name}.jpg")
-        #picturl = f"http://raibu.streams.moe/card_summaries/{save_name}.jpg"
+        #picturl = f"{self.bot.settings['website']}/card_summaries/{save_name}.jpg"
 
         reason = random.choice(muon_uses)
         mu = len(set(args)) * 12  # set to stop people being cheeky and claiming multiple times
@@ -867,7 +867,7 @@ class Tcg(commands.Cog):
 
         m = await ctx.message.channel.send(f"{mention}, {ctx.message.author.mention} has offered you {amount} snekbux "
                                        f"to buy your card #{serial}. Do you acccept? (Will time out after 2 hours) "
-                                       f"http://raibu.streams.moe/cards/{serial}.jpg")
+                                       f"{self.bot.settings['website']}/cards/{serial}.jpg")
 
         await m.add_reaction("\U0001F44D")
         await m.add_reaction("\U0001F44E")
