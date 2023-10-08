@@ -219,11 +219,11 @@ class Manager:
 
         self.cursor.execute('''INSERT INTO peros (userid, channelid, count)
         VALUES (%s, %s, %s)
-        ON CONFLICT (userid) WHERE userid > 0
+        ON CONFLICT (userid, channelid)
         DO UPDATE SET count = EXCLUDED.count''', (uid, chid, peros))
 
-        # the new postgres way
-        # couldn't we also check with peros_exists?
+        # it was necessary to add a constraint to the table to ensure uniqueness:
+        # ALTER TABLE peros ADD CONSTRAINT unique_userid_channelid UNIQUE (userid, channelid);
 
         # "WHERE userid > 0" was added to fix
         # "there is no unique or exclusion constraint matching the ON CONFLICT specification" error
