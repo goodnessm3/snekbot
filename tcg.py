@@ -9,6 +9,9 @@ import time
 import re
 from prettytable import PrettyTable
 from mydecorators import captcha, annoy
+from io import BytesIO
+
+from discord import File
 
 dud_items = ["single dirty sock",
               "packet of broken biscuits",
@@ -125,17 +128,18 @@ class Tcg(commands.Cog):
             out += f"#{k} - {nm}, current high bid: {price}, time remaining: {time_print(tm)}\n"
 
         if len(self.auctioned_cards.keys()) > 0:
-            ''' #TODO
+
             pilimage = self.make_card_summary({"":list(self.auctioned_cards.keys())}, small=True)
 
-            save_name = str(int(time.time()))[-8:]  # unique enough
-            pilimage.save(f"/var/www/html/card_summaries/{save_name}.jpg")
-            #pilimage.save(f"C:\\s\\tcg\\{save_name}.jpg")
+            data2 = BytesIO()
+            pilimage.save(data2, format="PNG")
+            data2.seek(0)
+            data3 = File(data2, filename="image.png")
 
-            out += f"{self.bot.settings['website']}/card_summaries/{save_name}.jpg"
-            '''
+        else:
+            data3 = None
 
-        return out
+        return out, data3
 
     async def npc_auction(self):
 
@@ -153,7 +157,7 @@ class Tcg(commands.Cog):
         self.offered_cards.append(serial)
         self.auction_times[serial] = time.time() + dur_secs
 
-        card_link = f"{self.bot.settings['website']}/cards/{serial}.jpg"  # all cards are uploaded to /var/www and always avb
+        card_link = f"{self.bot.settings['website']}/cards/{serial}.jpg"
 
         await self.chan.send(f"{random.choice(NPC_NAMES)} is selling a card! Bidding starts at {price} "
                                        f"snekbux. The auction will last for {duration} days. {card_link}")
@@ -175,7 +179,11 @@ class Tcg(commands.Cog):
                         "of 2 hours, type 'snek auction 00123 500 2'."
 
         if not args:
-            await ctx.message.channel.send(self.make_auction_menu())
+            msg, attachment = self.make_auction_menu()
+            if attachment:
+                await ctx.message.channel.send(msg, file=attachment)
+            else:
+                await ctx.message.channel.send(msg)
             return
 
         if not (len(args) == 2 or len(args) == 3):
@@ -190,13 +198,15 @@ class Tcg(commands.Cog):
         if len(args) == 2:
             args = list(args)  # so we can append the default time
             args.append(float(DEFAULT_AUCTION_LENGTH))  # add the FINISHING time of the auction
-        if not re.match('''^[0-9]{2,5}$''', args[2]):  # the duration in hours
+        if not re.match('''^[0-9]{1,3}$''', args[2]):  # the duration in hours
             await ctx.message.channel.send(instructions)
             return
 
         uid = ctx.message.author.id
         serial, price, duration = args
-        duration = float(duration * 3600)  # internally use seconds
+        print("line 207, duration is", duration)
+        duration = float(int(duration) * 3600)  # very stupid bug where multiplying a string by 3600 gives a BIG NUMBER
+        print("line 209, duration is", duration)
 
         if serial in self.offered_cards:
             await ctx.message.channel.send("That card is already involved in an auction or trade")
@@ -224,7 +234,11 @@ class Tcg(commands.Cog):
         try:
             serial, cost = args
         except:
-            await ctx.message.channel.send(self.make_auction_menu())
+            msg, attachment = self.make_auction_menu()
+            if attachment:
+                await ctx.message.channel.send(msg, file=attachment)
+            else:
+                await ctx.message.channel.send(msg)
             return
 
         if not serial_verifier.match(serial):
@@ -522,9 +536,6 @@ class Tcg(commands.Cog):
         await ctx.message.channel.send(
             f"Go here to see your card collection: {self.bot.settings['website']}/card_summary?user={uid}")
 
-        if len(crds) > 100:
-            await ctx.message.channel.send("Too many cards to generate a thumbnail.")
-            return
         if not crds:
             await ctx.message.channel.send(f"You have no cards! Claim random loot crates, or type 'snek crate'"
                                            "to buy a loot crate.")
@@ -535,16 +546,6 @@ class Tcg(commands.Cog):
             serial, series = x
             serial = str(serial).zfill(5)  # leading zeroes
             dict_for_layout[series].append(serial)
-        # pilimage = self.make_card_summary(dict_for_layout)
-
-        # max_name = len(os.listdir("/var/www/html/card_summaries/"))
-        # save_name = str(int(time.time()))[-8:]  # unique enough
-
-        # pilimage.save(f"/var/www/html/card_summaries/{save_name}.jpg")
-        #pilimage.save(f"C:\\s\\tcg\\{uid}.jpg")  # for testing
-
-        # await ctx.message.channel.send(f"{self.bot.settings['website']}/card_summaries/{save_name}.jpg")
-        await ctx.message.channel.send("card image generation disabled currently")
 
     def make_card_summary(self, files, small=False):
 
@@ -568,9 +569,8 @@ class Tcg(commands.Cog):
             else:
                 done.append(k)
                 for q in v:
-                    # TODO
-                    continue  # defuse opening of images below that won't be found
-                    image_path = f"/var/www/html/cards/{q}.jpg"
+
+                    image_path = os.path.join(self.bot.settings["card_image_path"], f"{q}.jpg")
                     im = Image.open(image_path)
                     black.paste(im, (x, y))
                     x += 300
@@ -633,7 +633,7 @@ class Tcg(commands.Cog):
 
         self.crate_cost[uid] =  self.crate_cost[uid] + 200  # slowly ramp up cost and have it decay back down
 
-    # @commands.command() todo - image generation for trade proposal
+    @commands.command()
     async def trade(self, ctx, *args):
 
         if ctx.message.author.id in self.waiting_for_response.values():
@@ -687,14 +687,22 @@ class Tcg(commands.Cog):
         # possible bail out points
 
         # a and b are ID's of the traders, probably put this on the image too one day
-        img = self.make_trade_image(ser1, ser2)
-        trade_name = str(int(time.time()))[-8:]
-        img.save(f"/var/www/html/trades/{trade_name}.jpg")  # todo!!!
+        name1 = await ctx.message.channel.guild.fetch_member(a)
+        name2 = await ctx.message.channel.guild.fetch_member(b)
 
-        await ctx.message.channel.send(f"{self.bot.settings['website']}/trades/{trade_name}.jpg")
+        n1 = name1.display_name
+        n2 = name2.display_name
+
+        img = self.make_trade_image(ser1, ser2, n1, n2)
+
+        data2 = BytesIO()
+        img.save(data2, format="PNG")
+        data2.seek(0)
+        data3 = File(data2, filename="image.png")
+
         m = await ctx.message.channel.send(f"{args[0]}, do you accept the trade? Click the react to accept or decline."
                                            f" The proposer can also cancel the trade by clicking the react."
-                                           f" The trade will automatically time out after 5 minutes.")
+                                           f" The trade will automatically time out after 5 minutes.", file=data3)
         await m.add_reaction("\U00002705")
         await m.add_reaction("\U0000274C")
 
@@ -712,7 +720,7 @@ class Tcg(commands.Cog):
         print("and added a trade owner:")
         print(self.trade_owners)
 
-    def make_trade_image(self, serials1, serials2):
+    def make_trade_image(self, serials1, serials2, name1, name2):
 
         def coordinate_generator(start, xinc, yinc, xthresh):
 
@@ -728,27 +736,26 @@ class Tcg(commands.Cog):
                 yield (x, y)
 
         width = 2400  # 3 per side horz
-        height = ((max(len(serials1), len(serials2)) - 1) // 3 + 1) * 600
+        height = ((max(len(serials1), len(serials2)) - 1) // 3 + 1) * 600 + 100  # 50 for username text
         black = Image.new("RGBA", (width, height), (0, 0, 0))
 
-        x = 0
-        y = 0
+        ctx = ImageDraw.Draw(black)
+        font = ImageFont.truetype("arial.ttf", 60)
+        ctx.text((10, 2), name1, font=font, fill=(255, 255, 255))
+        ctx.text((1510, 2), name2, font=font, fill=(255, 255, 255))
 
-        arrow = Image.open("/home/rargh/cards/arrows.png")
-        #arrow = Image.open("C:\\s\\tcg\\arrows.png")
+        arrow = Image.open(os.path.join(self.bot.settings["card_image_path"], "arrows.png"))
 
-        for h in zip(serials1, coordinate_generator((0, 0), 300, 600, 900)):
+        for h in zip(serials1, coordinate_generator((0, 100), 300, 600, 900)):
             x, coord = h
-            full_name = f"/var/www/html/cards/{str(x).zfill(5)}.jpg"
-            #full_name = f"C:\\s\\tcg\\cards\\{str(x).zfill(5)}.jpg"
-            im = Image.open(full_name)
+            full_name = f"{str(x).zfill(5)}.jpg"
+            im = Image.open(os.path.join(self.bot.settings["card_image_path"], full_name))
             black.paste(im, coord)
 
-        for h in zip(serials2, coordinate_generator((1500, 0), 300, 600, 2400)):
+        for h in zip(serials2, coordinate_generator((1500, 100), 300, 600, 2400)):
             x, coord = h
-            full_name = f"/var/www/html/cards/{str(x).zfill(5)}.jpg"
-            #full_name = f"C:\\s\\tcg\\cards\\{str(x).zfill(5)}.jpg"
-            im = Image.open(full_name)
+            full_name = f"{str(x).zfill(5)}.jpg"
+            im = Image.open(os.path.join(self.bot.settings["card_image_path"], full_name))
             black.paste(im, coord)
 
         black.paste(arrow, (1000, int(height / 2) - 50))
@@ -794,10 +801,11 @@ class Tcg(commands.Cog):
 
         dict_for_layout = {"blank": args}
         print(dict_for_layout)
-        #pict = self.make_card_summary(dict_for_layout) #todo!!!
-        #save_name = str(int(time.time()))[-8:]  # unique enough
-        #pict.save(f"/var/www/html/card_summaries/{save_name}.jpg")
-        #picturl = f"{self.bot.settings['website']}/card_summaries/{save_name}.jpg"
+        pict = self.make_card_summary(dict_for_layout)
+        data2 = BytesIO()
+        pict.save(data2, format="PNG")
+        data2.seek(0)
+        data3 = File(data2, filename="image.png")
 
         reason = random.choice(muon_uses)
         mu = len(set(args)) * 12  # set to stop people being cheeky and claiming multiple times
@@ -805,10 +813,10 @@ class Tcg(commands.Cog):
         for q in args:
             self.bot.buxman.remove_card(q)
 
-        msg = f"{ctx.message.author.mention}, you burned these cards, returning them to the pool! You have gained {mu}" \
-              f" muon. Muon can be used to {reason}! No images generated right now, just use your imagination."
+        msg = f"{ctx.message.author.mention}, you burned these cards, returning them to the pool! You have gained {mu}"\
+              f" muon. Muon can be used to {reason}!"
 
-        await ctx.message.channel.send(msg)
+        await ctx.message.channel.send(msg, file=data3)
 
     @commands.command()
     async def muon(self, ctx):
