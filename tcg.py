@@ -641,7 +641,7 @@ class Tcg(commands.Cog):
             return
 
         if not args:
-            await ctx.message.channel.send(f"go to {self.bot.settings['website']}/snekstore/trade_setup to set up a trade.")
+            await ctx.message.channel.send(f"go to {self.bot.settings['website']}/snekbot/trade_setup to set up a trade.")
             return
 
         source_id = ctx.message.author.id

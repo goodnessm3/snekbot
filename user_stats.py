@@ -21,6 +21,8 @@ class Manager:
 
     """Class to manage a database of discord id relating to various attributes"""
 
+    card_functions = {}
+
     def __init__(self, bot):
 
         self.bot = bot
@@ -126,8 +128,13 @@ class Manager:
         if not res:  # we need to add a new entry for them
             self.cursor.execute('''insert into stats (uid, bux) VALUES (%s, %s)''', (uid, amt))
         else:
-            self.cursor.execute('''update stats set muon = muon + %s where uid = %s''', (amt, uid))
-            # TODO: establish a negative check once people can spend muon (lol)
+            # self.cursor.execute('''update stats set muon = muon + %s where uid = %s''', (amt, uid)) # old fxn
+
+            self.cursor.execute('''UPDATE stats SET muon = CASE
+                        WHEN (muon + %s) < 0 THEN 0
+                        ELSE muon + %s
+                        END
+                        WHERE uid = %s''', (amt, amt, uid))
 
         self.db.commit()
 
@@ -566,7 +573,7 @@ class Manager:
 
     def random_unowned_card(self):
 
-        self.cursor.execute('''SELECT serial FROM cards WHERE owner IS NULL ORDER BY RANDOM() LIMIT 1''')
+        self.cursor.execute('''SELECT serial FROM cards WHERE owner IS NULL AND serial > 14999 ORDER BY RANDOM() LIMIT 1''')
         res = self.cursor.fetchone()
         if not res:
             return
@@ -767,3 +774,26 @@ class Manager:
             results = self.cursor.fetchall()
 
         return [x[0] for x in results]
+
+    # --- ACTIVE TRADING CARD FUNCTIONS ---
+
+    def count_cards(self, uid, element):
+
+        """Return the number of cards of a given element owned by the user with uid"""
+
+        self.cursor.execute('''SELECT COUNT(*) FROM cards WHERE owner = %s AND element = %s''', (uid, element))
+        return self.cursor.fetchone()[0]
+
+    def get_card(self, serial):
+
+        """Returns all db rows corresponding to this card, probably because it's an active card
+        and we want to run its functions."""
+
+        self.cursor.execute('''SELECT * FROM cards WHERE serial = %s''', (serial,))
+        return self.cursor.fetchone()
+
+
+
+
+
+
