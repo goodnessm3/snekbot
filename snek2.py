@@ -14,6 +14,7 @@ from cleverwrap import CleverWrap
 import os
 import subprocess
 import nick
+import tcg_active
 
 LOG = open("snek_log.txt", "a")
 

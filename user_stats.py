@@ -559,6 +559,13 @@ class Manager:
     def add_card(self, uid, card):
 
         self.cursor.execute('''UPDATE cards SET owner = %s WHERE serial = %s''', (uid, card))
+        self.cursor.execute('''SELECT timedelta FROM cards WHERE serial = %s''', (card,))
+        td = self.cursor.fetchone()[0]
+        if td is not None:  # it's an active card with a time delta, we need to reschedule it
+            # and make its functions apply to its owner
+            self.cursor.execute('''UPDATE cards SET target_uid = owner WHERE serial = %s''', (card,))
+            self.reschedule_card(card, reset=True)  # the first time it runs is timedelta away from now
+
         self.db.commit()
 
     def remove_card(self, card):
@@ -573,7 +580,10 @@ class Manager:
 
     def random_unowned_card(self):
 
-        self.cursor.execute('''SELECT serial FROM cards WHERE owner IS NULL AND serial > 14999 ORDER BY RANDOM() LIMIT 1''')
+        # TODO: still consider temporary but population of active and element cards is about the same
+        # want to weight the probability of certain types of cards perhaps
+
+        self.cursor.execute('''SELECT serial FROM cards WHERE owner IS NULL AND serial > 15000 ORDER BY RANDOM() LIMIT 1''')
         res = self.cursor.fetchone()
         if not res:
             return
@@ -791,6 +801,27 @@ class Manager:
 
         self.cursor.execute('''SELECT * FROM cards WHERE serial = %s''', (serial,))
         return self.cursor.fetchone()
+
+    def get_scheduled_cards(self):
+
+        """return a list of tuples of all reminders whose time is greater than now"""
+
+        self.cursor.execute('''SELECT serial, next_runtime FROM cards 
+        WHERE next_runtime < NOW() + interval '5 minutes' AND owner IS NOT NULL''')
+        # cards scheduled to be run in the next hour
+        return self.cursor.fetchall()  # a list of tuples of serial and timedelta
+
+    def reschedule_card(self, serial, reset=False):
+
+        """This function is scheduled in the bot loop to run at the same time as the card's actual function"""
+
+        if reset:  # the next_runtime was in the past. Reschedule it to run x hours from now where x is the interval.
+            self.cursor.execute('''UPDATE cards 
+                                SET next_runtime = NOW() + timedelta WHERE serial = %s''', (serial,))
+        else:
+            self.cursor.execute('''UPDATE cards 
+                                SET next_runtime = next_runtime + timedelta WHERE serial = %s''', (serial,))
+
 
 
 

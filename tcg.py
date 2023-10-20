@@ -37,6 +37,7 @@ dud_items = ["single dirty sock",
               "a urinal cake",
               "half a jar of salsa",
               ]
+
 muon_uses = ["improve your chances for opening loot crates",
              "purchase additional loot crates (coming soon)",
              "use snek commands more often",
@@ -66,8 +67,8 @@ NPC_NAMES = ["Diogenes Pontifex (NPC)",
 serial_verifier = re.compile('''^[0-9]{5}$''')
 discord_id_verifier = re.compile('''^[0-9]{17,19}$''')  # can be 17 digits only if quite an old ID!
 
-RANDOM_MIN = 7200
-RANDOM_MAX = 86400
+RANDOM_MIN = 5200  # for loot crates
+RANDOM_MAX = 60000  # for loot crates
 GACHA_LUCK_TIME = 180
 CRATE_COST_TIME = 120
 TRADE_TIMEOUT = 300
@@ -75,6 +76,7 @@ DEFAULT_AUCTION_LENGTH = 2  # hours
 
 
 def time_print(flt):
+
     flt = int(flt)  # don't care about fractional seconds
     days = flt // 86400
     hours = flt % 86400 // 3600
@@ -115,7 +117,8 @@ class Tcg(commands.Cog):
         self.bot.loop.call_later(12, lambda: asyncio.ensure_future(self.drop()))
         self.bot.loop.call_later(GACHA_LUCK_TIME, lambda: asyncio.ensure_future(self.decrement_counters()))
         self.bot.loop.call_later(CRATE_COST_TIME, lambda: asyncio.ensure_future(self.modulate_crate_cost()))
-        self.bot.loop.call_later(15, lambda: asyncio.ensure_future(self.npc_auction()))
+        # self.bot.loop.call_later(15, lambda: asyncio.ensure_future(self.npc_auction()))
+        # turn off auctions for now till we are sure everything is stable
 
     def make_auction_menu(self):
 
@@ -149,8 +152,8 @@ class Tcg(commands.Cog):
             return  # no cards avbl
         self.bot.buxman.add_card(uid, serial)  # assign it to the NPC owner now so it can't be gacha'd in the interim
         price = random.randint(1, 15) * 100
-        duration = random.randint(1,5)
-        dur_secs = float(duration * 86400)
+        duration = random.randint(1, 5)
+        dur_secs = float(duration * 3600)  # quick auctions
 
         self.auctioned_cards[serial].append((int(price), ""))  # this is normally the price and the ID of the bidders
         self.card_auctioners[serial] = uid
@@ -166,7 +169,7 @@ class Tcg(commands.Cog):
         self.bot.loop.call_later(dur_secs, lambda: asyncio.ensure_future(self.conclude_auction(serial)))
         print(f"Scheduled completion of auction after {dur_secs}s of serial {serial}")
 
-        next_auction = 86400 + random.randint(0, 86400)
+        next_auction = 3600 + random.randint(0, 10000)  # auctions were made quicker and more frequent temporarily
         self.bot.loop.call_later(next_auction, lambda: asyncio.ensure_future(self.npc_auction()))
 
     @commands.command()
@@ -332,7 +335,8 @@ class Tcg(commands.Cog):
                 mem = await self.chan.guild.fetch_member(x)
                 adict[x] = mem.display_name
             except:
-                print(f"user with id {x} was not found when updating display names")
+                pass  # turning off debug print while doing other things
+                # print(f"user with id {x} was not found when updating display names")
 
         self.bot.buxman.update_card_trader_names(adict)
         self.bot.loop.call_later(86400, lambda: asyncio.ensure_future(self.update_player_names()))
