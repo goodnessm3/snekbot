@@ -120,6 +120,14 @@ class Tcg(commands.Cog):
         # self.bot.loop.call_later(15, lambda: asyncio.ensure_future(self.npc_auction()))
         # turn off auctions for now till we are sure everything is stable
 
+        self.bot.loop.call_later(10, lambda: asyncio.ensure_future(self.update_guaranteed_cards()))
+
+    async def update_guaranteed_cards(self):
+
+        print("Checking if any cards are overdue to be pulled")
+        self.bot.buxman.check_guaranteed_cards()
+        self.bot.loop.call_later(3600, lambda: asyncio.ensure_future(self.update_guaranteed_cards()))
+
     def make_auction_menu(self):
 
         out = "The following cards are for sale. To bid, type 'snek bid [card serial] [amount]. To auction your own " \

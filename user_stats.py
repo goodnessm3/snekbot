@@ -558,7 +558,8 @@ class Manager:
 
     def add_card(self, uid, card):
 
-        self.cursor.execute('''UPDATE cards SET owner = %s WHERE serial = %s''', (uid, card))
+        self.cursor.execute('''UPDATE cards SET owner = %s, guarantee_time = NULL WHERE serial = %s''', (uid, card))
+        # in case it was a guaranteed card, get rid of the guarantee timestamp
         self.cursor.execute('''SELECT timedelta FROM cards WHERE serial = %s''', (card,))
         td = self.cursor.fetchone()[0]
         if td is not None:  # it's an active card with a time delta, we need to reschedule it
@@ -578,11 +579,41 @@ class Manager:
         self.cursor.execute('''SELECT serial, series FROM cards WHERE owner = %s''', (uid,))
         return self.cursor.fetchall()
 
+    def check_guaranteed_cards(self):
+
+        gserials = []  # serial numbers that must appear after the date specified in guaranteed.txt
+
+        try:
+            with open("guaranteed.txt", "r") as f:
+                for line in f:
+                    ser, datestr = line.split(":")
+                    date = datetime.datetime.fromisoformat(datestr.rstrip("\n"))
+                    if date < datetime.datetime.now():  # time to guarantee this pull so add it to the db
+                        self.cursor.execute('''UPDATE cards SET guarantee_time = %s WHERE serial = %s''',
+                                            (date, int(ser)))
+                        print(f"Card {ser} is guaranteed to be pulled now.")
+                    else:
+                        gserials.append(line)  # not time to guarantee it yet so just prepare to write it back out
+        except FileNotFoundError:
+            print("Couldn't find guaranteed.txt")
+
+        with open("guaranteed.txt", "w") as f:  # now just write back out all the lines we didn't ingest
+            for line in gserials:
+                f.write(line)  # we just saved the lines as they came out the file so they're written back the same
+
     def random_unowned_card(self):
 
         # TODO: still consider temporary but population of active and element cards is about the same
         # want to weight the probability of certain types of cards perhaps
 
+        # first, check to see if there are any guaranteed cards, and if so just return one of those
+        self.cursor.execute('''SELECT serial FROM cards WHERE guarantee_time < NOW() AND owner IS NULL LIMIT 1''')
+        res = self.cursor.fetchone()
+        if res:
+            serial = str(res[0]).zfill(5)  # convert serial number to padded string for file name use
+            return serial
+
+        # but if the last query came back with nothing, select a truly random card instead.
         self.cursor.execute('''SELECT serial FROM cards WHERE owner IS NULL AND serial > 15000 ORDER BY RANDOM() LIMIT 1''')
         res = self.cursor.fetchone()
         if not res:
