@@ -3,57 +3,20 @@ from discord.ext import commands
 from discord import Embed
 import re
 import json
-from tweepy import OAuthHandler
-import tweepy
 import aiohttp
 from async_timeout import timeout
 from hashlib import md5  # for naming saved images
 from PIL import Image  # for resizing images to thumbnail
 from io import BytesIO
 
-class TwitInfo:
-
-    A = B = C = D = None
-
-
-TI = TwitInfo()
-
-
-with open("twitter_keys.json", "r") as f:
-    twitinfo = json.load(f)
-    for k, v in twitinfo.items():
-        TI.__setattr__(k, v)  # this is needlessly complicated
-
 
 def resize(tup):
+
     """Not generic - just resizes a picture to 300 px wide"""
 
     x, y = tup
     ratio = 300.0 / x
     return int(x * ratio), int(y * ratio)
-
-
-class TweetGetter:
-
-    def __init__(self):
-
-        auth = OAuthHandler(TI.A, TI.B)
-        auth.set_access_token(TI.C, TI.D)
-        self.client = tweepy.API(auth)
-
-    def get_tweet_image_url(self, tweet_id):
-
-        res = self.client.lookup_statuses([tweet_id])
-        if not res:
-            print("tweet id not valid?")
-            return
-        try:
-            return res[0].entities["media"][0]["media_url"]
-        except KeyError:
-            print("couldn't find media in tweet")
-            return
-
-TG = TweetGetter()
 
 
 class Mpero(commands.Cog):
@@ -135,10 +98,8 @@ class Mpero(commands.Cog):
         url = None
         # print(f"downloading from {msg}")
         # print(f"contet is: {c}")
-        if postid := tweet_finder.findall(c):  # look ma, I'm using the walrus operator!
-            url = TG.get_tweet_image_url(postid[0])  # [0] index because findall returns a list
 
-        elif msg.attachments:  # an image someone uploaded directly
+        if msg.attachments:  # an image someone uploaded directly
             url = msg.attachments[0].url
 
         elif direct_link := imgurl_finder.findall(c):
