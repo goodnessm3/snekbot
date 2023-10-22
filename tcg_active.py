@@ -533,7 +533,7 @@ class ActiveCards(commands.Cog):
         self.bot = bot
         self.bot.loop.create_task(self.check_schedule())
         self.scheduled_cards = []
-        self.check_freq = 10  # how many seconds between checks, this must also be updated in the SQL query!
+        self.check_freq = 300  # how many seconds between checks, this must also be updated in the SQL query!
         # we are checking quite frequently to head off the possibility that someone sells or transfers a card
         # after its task has been scheduled. TODO: really we should keep a handle from scheduled tasks,
         # can cancel them if card ownership changes
