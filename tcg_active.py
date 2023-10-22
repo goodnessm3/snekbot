@@ -547,6 +547,7 @@ class ActiveCards(commands.Cog):
         print(f"Async check schedule function at {datetime.datetime.now()}")
 
         to_run = self.bot.buxman.get_scheduled_cards()
+        print("Cards to run from DB are: ", to_run)
 
         for tup in to_run:
             serial, time_to_run = tup
@@ -564,6 +565,7 @@ class ActiveCards(commands.Cog):
                     secs = delta.seconds
                     ttr = self.bot.loop.time() + secs  # asyncio loop time is NOT THE SAME AS THE SYSTEM TIME!!!
                     self.scheduled_cards.append(serial)
+                    print(f"Evaluation of {serial} in {ttr} seconds.")
                     self.bot.loop.call_at(ttr, self.carder.evaluate_card, serial)
                     self.bot.loop.call_at(ttr, self.reschedule_card, serial)
                 else:
