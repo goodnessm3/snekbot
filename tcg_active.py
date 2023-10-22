@@ -533,7 +533,7 @@ class ActiveCards(commands.Cog):
         self.bot = bot
         self.bot.loop.create_task(self.check_schedule())
         self.scheduled_cards = []
-        self.check_freq = 300  # how many seconds between checks, this must also be updated in the SQL query!
+        self.check_freq = 10  # how many seconds between checks, this must also be updated in the SQL query!
         # we are checking quite frequently to head off the possibility that someone sells or transfers a card
         # after its task has been scheduled. TODO: really we should keep a handle from scheduled tasks,
         # can cancel them if card ownership changes
@@ -544,29 +544,31 @@ class ActiveCards(commands.Cog):
         if there's less than an hour until it runs. This is first added to the bot loop in the init method."""
 
         print(f"Async check schedule function at {datetime.datetime.now()}")
+        print("Scheduled cards list is:", self.scheduled_cards)
 
         to_run = self.bot.buxman.get_scheduled_cards()
         print("Cards to run from DB are: ", to_run)
 
         for tup in to_run:
-            serial, time_to_run = tup
-            if time_to_run < datetime.datetime.now():
+            serial, time_to_run = tup  # time_to_run is a timedelta, the difference between now and when it's scheduled
+
+            if time_to_run.days < 0: # a negative timedelta, which has negative days and then positive everything else
                 # next time was in the past, probably the bot has been turned off.
                 print(f"Card {serial} next runtime was in the past, updating its schedule")
                 self.bot.buxman.reschedule_card(serial, reset=True)  # update the interval into the future
                 # reset just adds the current time to the time interval of the card
                 # this is an imperfect solution if the time delta is really long, like several days
             else:
-                print(f"Card {serial} will run at {time_to_run}")
+                print(f"Card {serial} will run after {time_to_run}")
                 if not serial in self.scheduled_cards:
-                    print(f"Scheduling an async task for card {serial}.")
-                    delta = time_to_run - datetime.datetime.now()  # this only works if ttr is in the future!
-                    secs = delta.seconds
-                    ttr = self.bot.loop.time() + secs  # asyncio loop time is NOT THE SAME AS THE SYSTEM TIME!!!
+                    #print(f"Scheduling an async task for card {serial}.")
+                    #delta = time_to_run - datetime.datetime.now()  # this only works if ttr is in the future!
+                    #secs = delta.seconds
+                    ttr = time_to_run.seconds  # asyncio loop time is NOT THE SAME AS THE SYSTEM TIME!!!
                     self.scheduled_cards.append(serial)
                     print(f"Evaluation of {serial} in {ttr} seconds.")
-                    self.bot.loop.call_at(ttr, self.carder.evaluate_card, serial)
-                    self.bot.loop.call_at(ttr, self.reschedule_card, serial)
+                    self.bot.loop.call_at(self.bot.loop.time() + ttr, self.carder.evaluate_card, serial)
+                    self.bot.loop.call_at(self.bot.loop.time() + ttr, self.reschedule_card, serial)
                 else:
                     print(f"Card {serial} is already enqueued, not creating a task.")
 

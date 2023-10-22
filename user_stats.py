@@ -404,8 +404,10 @@ class Manager:
         """Returns the time now according to the SQL DB"""
 
         #self.cursor.execute('''SELECT datetime("now")''')
-        self.cursor.execute('''SELECT NOW()''')  # for postgres
-        return self.cursor.fetchone()
+        #self.cursor.execute('''SELECT NOW()''')  # for postgres
+        self.cursor.execute('''SELECT STATEMENT_TIMESTAMP()''')  # NOW() is always giving the same value? Seems to
+        # always be the time value of when the connection was first opened...
+        return self.cursor.fetchone()[0]
 
     def anticipate_shop_activation(self, uid, rand, uname):
 
@@ -837,11 +839,15 @@ class Manager:
 
     def get_scheduled_cards(self):
 
-        """return a list of tuples of all reminders whose time is greater than now"""
+        """return a list of tuples of all cards due to be run in the next increment. The tuples contain the serial
+        and the number of seconds from now that the funcs should be run. Doing all the time calculations inside
+        the database seems to be less of a headache..."""
 
-        self.cursor.execute('''SELECT serial, next_runtime FROM cards 
-        WHERE next_runtime < NOW() + interval '5 minutes' AND owner IS NOT NULL''')
-        # cards scheduled to be run in the next hour
+        self.cursor.execute('''SELECT serial, next_runtime - STATEMENT_TIMESTAMP()
+                            FROM cards 
+                            WHERE next_runtime < STATEMENT_TIMESTAMP() + interval '5 minutes' 
+                            AND owner IS NOT NULL''')
+        # cards scheduled to be run in the next 5 minutes
         return self.cursor.fetchall()  # a list of tuples of serial and timedelta
 
     def reschedule_card(self, serial, reset=False):
@@ -850,7 +856,7 @@ class Manager:
 
         if reset:  # the next_runtime was in the past. Reschedule it to run x hours from now where x is the interval.
             self.cursor.execute('''UPDATE cards 
-                                SET next_runtime = NOW() + timedelta WHERE serial = %s''', (serial,))
+                                SET next_runtime = STATEMENT_TIMESTAMP() + timedelta WHERE serial = %s''', (serial,))
         else:
             self.cursor.execute('''UPDATE cards 
                                 SET next_runtime = next_runtime + timedelta WHERE serial = %s''', (serial,))
