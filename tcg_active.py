@@ -305,8 +305,8 @@ class TcgActive(metaclass=SpecialMethodsMeta):
         else:
             joiner = "and"
 
-        sb = my_sigfig(ri(500, 3000) * frequency * sbmod)
-        mu = my_sigfig(ri(3, 20) * frequency * mumod)
+        sb = my_sigfig(ri(50, 300) * frequency * sbmod)
+        mu = my_sigfig(ri(2, 8) * frequency * mumod)
         currency = None
 
         if chance(15):  # rarer chance of both things
