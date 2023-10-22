@@ -589,8 +589,10 @@ class Manager:
                     ser, datestr = line.split(":")
                     date = datetime.datetime.fromisoformat(datestr.rstrip("\n"))
                     if date < datetime.datetime.now():  # time to guarantee this pull so add it to the db
-                        self.cursor.execute('''UPDATE cards SET guarantee_time = %s WHERE serial = %s''',
+                        self.cursor.execute('''UPDATE cards SET guarantee_time = %s WHERE serial = %s AND owner IS NULL''',
                                             (date, int(ser)))
+                        # need owner check if this card happened to be pulled anyway
+                        # todo: accidentally already pulled cards will hang around the list 5ever
                         print(f"Card {ser} is guaranteed to be pulled now.")
                     else:
                         gserials.append(line)  # not time to guarantee it yet so just prepare to write it back out

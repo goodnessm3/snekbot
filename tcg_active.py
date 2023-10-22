@@ -492,7 +492,7 @@ class TcgActive(metaclass=SpecialMethodsMeta):
 
         restuple = self.m.get_card(serial)
         serial, owner, atk, defense, mana, card_name, series, element, target_uid,\
-        next_runtime, checks, funcs, immunity, readable, timedelta = restuple
+        next_runtime, checks, funcs, immunity, readable, timedelta, guarantee_time = restuple
         # todo: DB row factory or whatever it is
 
         chks = []
