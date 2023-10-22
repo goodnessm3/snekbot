@@ -855,6 +855,8 @@ class Manager:
             self.cursor.execute('''UPDATE cards 
                                 SET next_runtime = next_runtime + timedelta WHERE serial = %s''', (serial,))
 
+        self.db.commit()
+
 
 
 

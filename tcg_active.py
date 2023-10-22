@@ -529,7 +529,6 @@ class ActiveCards(commands.Cog):
 
         """Just an async class to delegate things to all the active carder code, which is not async"""
 
-        print("async part of active carder module activated")
         self.carder = TcgActive(bot)
         self.bot = bot
         self.bot.loop.create_task(self.check_schedule())
@@ -575,6 +574,7 @@ class ActiveCards(commands.Cog):
 
     def reschedule_card(self, serial):
 
+        print(f"Rescheduling {serial}, reset = False")
         self.bot.buxman.reschedule_card(serial)
         self.scheduled_cards.remove(serial)
 
