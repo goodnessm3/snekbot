@@ -67,8 +67,8 @@ NPC_NAMES = ["Diogenes Pontifex (NPC)",
 serial_verifier = re.compile('''^[0-9]{5}$''')
 discord_id_verifier = re.compile('''^[0-9]{17,19}$''')  # can be 17 digits only if quite an old ID!
 
-RANDOM_MIN = 5200  # for loot crates
-RANDOM_MAX = 60000  # for loot crates
+RANDOM_MIN = 7600  # for loot crates
+RANDOM_MAX = 86400  # for loot crates
 GACHA_LUCK_TIME = 180
 CRATE_COST_TIME = 120
 TRADE_TIMEOUT = 300
@@ -114,7 +114,7 @@ class Tcg(commands.Cog):
         self.auction_times = {}  # serial: conclusion time
 
         self.bot.loop.call_later(10, lambda: asyncio.ensure_future(self.update_player_names()))
-        self.bot.loop.call_later(12, lambda: asyncio.ensure_future(self.drop()))
+        self.bot.loop.call_later(7200, lambda: asyncio.ensure_future(self.drop()))
         self.bot.loop.call_later(GACHA_LUCK_TIME, lambda: asyncio.ensure_future(self.decrement_counters()))
         self.bot.loop.call_later(CRATE_COST_TIME, lambda: asyncio.ensure_future(self.modulate_crate_cost()))
         # self.bot.loop.call_later(15, lambda: asyncio.ensure_future(self.npc_auction()))
