@@ -42,6 +42,8 @@ class Daily(commands.Cog):
             self.bot.buxman.adjust_bux(uid, 50)
         if strk == 420:
             await ctx.message.channel.send("Lmao 420 blaze it XD")
+        if strk == 500:
+            await ctx.message.channel.send("Congratulations on 500 days! You are half way towards winning a special prize!")
 
     def time_check(self, uid):
 
