@@ -457,7 +457,6 @@ class Manager:
                                     (dividend, q, x))
 
         self.db.commit()
-            
 
     def adjust_stonk(self, uid, tag, cost):
 
@@ -591,6 +590,8 @@ class Manager:
                     ser, datestr = line.split(":")
                     date = datetime.datetime.fromisoformat(datestr.rstrip("\n"))
                     if date < datetime.datetime.now():  # time to guarantee this pull so add it to the db
+                        date = date.replace(tzinfo=datetime.timezone(datetime.timedelta(hours=-4)))
+                        # need to specify that the times from the file are in EST - Postgres gives a timezone-aware time
                         self.cursor.execute('''UPDATE cards SET guarantee_time = %s WHERE serial = %s AND owner IS NULL''',
                                             (date, int(ser)))
                         # need owner check if this card happened to be pulled anyway
@@ -611,14 +612,18 @@ class Manager:
         # want to weight the probability of certain types of cards perhaps
 
         # first, check to see if there are any guaranteed cards, and if so just return one of those
-        self.cursor.execute('''SELECT serial FROM cards WHERE guarantee_time < NOW() AND owner IS NULL LIMIT 1''')
+        self.cursor.execute('''SELECT serial FROM cards
+         WHERE guarantee_time < STATEMENT_TIMESTAMP() 
+         AND owner IS NULL 
+         LIMIT 1''')
         res = self.cursor.fetchone()
         if res:
+            print("Found a guaranteed card, using that")
             serial = str(res[0]).zfill(5)  # convert serial number to padded string for file name use
             return serial
 
         # but if the last query came back with nothing, select a truly random card instead.
-        self.cursor.execute('''SELECT serial FROM cards WHERE owner IS NULL AND serial > 15000 ORDER BY RANDOM() LIMIT 1''')
+        self.cursor.execute('''SELECT serial FROM cards WHERE owner IS NULL ORDER BY RANDOM() LIMIT 1''')
         res = self.cursor.fetchone()
         if not res:
             return

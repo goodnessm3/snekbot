@@ -5,6 +5,12 @@ __pycache__/
 /birb1.jpg
 /birb2.jpg
 /birb3.jpg
+/otherbirb.jpg
 /.idea
 twitter_keys.json
 twitter_channels.txt
+guaranteed.txt
+*.ipynb
+nicks.txt
+shop_file.txt
+snek_log.txt
