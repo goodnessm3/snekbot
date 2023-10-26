@@ -733,7 +733,9 @@ class Manager:
         part = '''(card_name LIKE %s OR series LIKE %s)'''
         start = '''SELECT serial, screen_name, card_name, series FROM cards 
                     INNER JOIN names ON 
-                    names.uid = cards.owner WHERE'''
+                    names.uid = cards.owner WHERE
+                    cards.owner IS NOT NULL 
+                    AND'''
 
         search_qry = []
         for x in words:
