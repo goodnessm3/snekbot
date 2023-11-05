@@ -1,9 +1,7 @@
 import discord
 from discord.ext import commands
 import asyncio
-import aiohttp
-from async_timeout import timeout
-from io import BytesIO
+import subprocess
 
 
 def check(msg):
@@ -17,7 +15,7 @@ class Plant(commands.Cog):
         self.bot = bot
         self.expecting = set()  # channels who have requested to see a picture of the plant
         self.waiting = False
-        self.plant_url = self.bot.settings["plant_url"]
+        # self.pic_mod_time = os.stat("plant.jpg").st_mtime  # to detect when a new plant.jpg has been uploaded
 
     @commands.command()
     async def plant(self, ctx):
@@ -27,24 +25,24 @@ class Plant(commands.Cog):
 
         if not self.waiting:
             self.waiting = True
-            #try:
-            await asyncio.wait_for(self.send_plant_pic(), timeout=30)
-            #except:
-                #await ctx.message.channel.send("camera timed out!")
-                #self.waiting = False
+            try:
+                await asyncio.wait_for(self.send_plant_pic(), timeout=30)
+            except:
+                await ctx.message.channel.send("camera timed out!")
+                self.waiting = False
 
     async def send_plant_pic(self):
 
-        print("image from", self.plant_url)
-        async with aiohttp.ClientSession(loop=self.bot.loop) as s:
-            async with s.get(self.plant_url) as r:
-                async with timeout(10):
-                    image_data = await r.read()
-                    image_io = BytesIO(image_data)
-
+        error = False
+        retcode = subprocess.run(["ffmpeg", "-y", "-i", "rtmp://localhost:5000/live", "-vframes", "1", "plant.jpg"])
+        if not retcode == 0:
+            error = True
         for chan_id in self.expecting:
             chan = self.bot.get_channel(chan_id)
-            await chan.send("", file=discord.File(image_io, filename="image.jpg"))
+            if error:
+                await chan.send("Something went wrong!")
+            else:
+                await chan.send("", file=discord.File("plant.jpg"))
             try:
                 await chan.purge(check=check)
             except discord.ext.commands.errors.CommandInvokeError:
