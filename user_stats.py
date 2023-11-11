@@ -136,6 +136,8 @@ class Manager:
                         END
                         WHERE uid = %s''', (amt, amt, uid))
 
+        self.cursor.execute('''INSERT INTO muonlog (uid, amt) VALUES (%s ,%s)''', (uid, amt))
+
         self.db.commit()
 
     def add_reminder(self, uid, message, channel_id, delay):
