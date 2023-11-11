@@ -9,7 +9,7 @@ import clean_text as ct
 from Tree_Server import Tree_Server
 import aiohttp
 from mydecorators import captcha, annoy
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 from PIL import Image
 from io import BytesIO
 import discord
@@ -387,7 +387,6 @@ class Gelbooru(commands.Cog):
         # all done inside the SQL command in the DB manager
         self.bot.loop.call_later(86400, lambda: asyncio.ensure_future(self.monitor_tag_deltas()))
 
-    ''' # temporarily disable plotting because matplotlib has problems on pi
     @commands.command()
     async def tag_trend(self, ctx, tag):
 
@@ -415,7 +414,7 @@ class Gelbooru(commands.Cog):
 
         await ctx.message.channel.send(file=discord.File(buffer, filename="graph.png"))
         # we need to provide a filename so it's correctly detected as a .png and shown as an image
-    '''
+
 
 async def setup(bot):
 
