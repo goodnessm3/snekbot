@@ -243,10 +243,10 @@ class TcgActive(metaclass=SpecialMethodsMeta):
         required = ri(1, 8)
         if chance(50):
             compstr = "at least"
-            comp = "<="
+            comp = ">="
         else:
             compstr = "at most"
-            comp = ">="
+            comp = "<="
 
         if required == 1:
             orbtext = "infinity orb"
