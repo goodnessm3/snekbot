@@ -23,8 +23,10 @@ settings = {}  # overwritten by loading functions below
 updating = False  # global variable to determine whether snek is being restarted to update
 intents = discord.Intents.default()  # new for version 2.0
 intents.message_content = True
+TESTING = False
 
 if len(sys.argv) > 1 and sys.argv[1] == "-t":
+    TESTING = True
     with open("settings_testing.json", "rb") as f:
         settings = json.load(f)
     bot = commands.Bot(command_prefix=["!"], intents=intents)  # testing bot only responds to !-prefixed cmds
@@ -357,7 +359,7 @@ async def on_message(message):
     cont = message.content
     ctx = await bot.get_context(message)
 
-    if type(ctx.message.channel) == discord.channel.DMChannel:
+    if type(ctx.message.channel) == discord.channel.DMChannel and not TESTING:
         await ctx.message.channel.send("#robot-zone please")
         return
 
