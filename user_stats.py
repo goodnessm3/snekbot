@@ -411,16 +411,22 @@ class Manager:
         # always be the time value of when the connection was first opened...
         return self.cursor.fetchone()[0]
 
-    def anticipate_shop_activation(self, uid, rand, uname):
+    def anticipate_shop_activation(self, uid, secret, uname):
 
         """Stores a number to expect from a user using the web interface. When this number
         is received on the web page it is used to associate the cookie ID with the discord ID"""
-        # TODO: insert or update
-        self.cursor.execute('''UPDATE shop SET (rand, uname, cookie) = (%s, %s, NULL) where UID = %s''', (rand, uname, uid))
+
+        #self.cursor.execute('''UPDATE shop SET (rand, uname, cookie) = (%s, %s, NULL) where UID = %s''', (rand, uname, uid))
         # we need to put the user's display name in the table so the web interface knows what to call the user
         # if the user has no pre-existing entry we need to make one though:
-        self.cursor.execute('''INSERT INTO shop (uid, rand, uname) SELECT %s, %s, %s WHERE (SELECT CHANGES() = 0)''',
-                            (uid, rand, uname))
+        #self.cursor.execute('''INSERT INTO shop (uid, rand, uname) SELECT %s, %s, %s WHERE (SELECT CHANGES() = 0)''',
+        #                    (uid, rand, uname))  # SELECT CHANGES() seems to be only a sqlite thing
+
+        # new postgreSQL code:
+        self.cursor.execute('''INSERT INTO shop (uid, cookie, uname) VALUES (%s, %s, %s)
+                                ON CONFLICT (uid)
+                                DO UPDATE SET cookie = %s, uname = %s''', (uid, secret, uname, secret, uname))
+        # this assumes there is a unique constraint on the uid column, to trigger the conflict
 
         self.db.commit()  # MUST commit change so that it's visible to the web code
 
