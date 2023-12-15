@@ -23,7 +23,10 @@ class Stream(commands.Cog):
                 async with timeout(10):
                     stream_token = await r.text()  # used to make a link valid for a limited time
 
-        cmd = f'''ffmpeg -i {self.stream_thumbnail_url} -f image2pipe -vframes 1 -q:v 2 -'''
+        # for Windows
+        #cmd = f'''ffmpeg -i {self.stream_thumbnail_url} -f image2pipe -vframes 1 -q:v 2 -'''
+        # for Linux TODO: detect platform and run appropriate command
+        cmd = ["ffmpeg", "-i", "{self.stream_thumbnail_url}", "-f", "image2pipe", "-vframes", "1", "-q:v", "2", "-"]
         pipe = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 8)
 
         try:
