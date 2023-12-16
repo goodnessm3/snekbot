@@ -45,7 +45,7 @@ class Stream(commands.Cog):
         # for Windows
         #cmd = f'''ffmpeg -i {self.stream_thumbnail_url} -f image2pipe -vframes 1 -q:v 2 -'''
         # for Linux TODO: detect platform and run appropriate command
-        cmd = ["ffmpeg", "-i", "{self.stream_thumbnail_url}", "-f", "image2pipe", "-vframes", "1", "-q:v", "2", "-"]
+        cmd = ["ffmpeg", "-i", f"{self.stream_thumbnail_url}", "-f", "image2pipe", "-vframes", "1", "-q:v", "2", "-"]
         pipe = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 8)
 
         try:
