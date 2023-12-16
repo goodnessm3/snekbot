@@ -16,6 +16,25 @@ class Stream(commands.Cog):
         self.secret = self.bot.settings["time_token_secret"]  # the credential to use to get a key from the source
 
     @commands.command()
+    async def schedule(self, ctx):
+
+        with open(self.bot.settings["now_playing_file"], "r") as f:
+            nowplaying = f.read().rstrip("\n")  # it's only ever a one-line file
+
+        with open(self.bot.settings["schedule_file"], "r") as f:
+            whole_schedule = list(map(lambda q: q.rstrip("\n"), f))
+
+        out = []
+        for q in whole_schedule:
+            if q == nowplaying:
+                out.append(q + " <-- NOW PLAYING")
+            else:
+                out.append(q)
+
+        video_list = "\n".join(out)
+        await ctx.send(f'''```Snek video queue:\n\n{video_list}```''')
+
+    @commands.command()
     async def tv(self, ctx):
 
         async with aiohttp.ClientSession(loop=self.bot.loop) as s:
@@ -45,8 +64,20 @@ class Stream(commands.Cog):
                 pass  # just want to get to the very last line
             last = line.rstrip("\n")
 
+        with open(self.bot.settings["schedule_file"], "r") as f:
+            whole_schedule = list(map(lambda q: q.rstrip("\n"), f))
+            a = False
+            next_up = "Not found"  # in case no match is found
+            for x in whole_schedule:
+                if a:
+                    next_up = x
+                    break
+                if x == last:
+                    a = True
+
         full_stream_url = self.bot.settings['stream_page'] + f'''?token={stream_token}'''
-        await ctx.send(f"Now playing: {last} at {full_stream_url}",
+        await ctx.send(f"Now playing: {last} at {full_stream_url}. Next up: {next_up}. "
+                       f"Type 'snek schedule' for full listing!",
                        file=discord.File(flo,
                         filename="image.jpg"))
 
