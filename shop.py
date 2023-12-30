@@ -11,11 +11,6 @@ class Shop(commands.Cog):
         self.bot = bot
 
     @commands.command()
-    async def shop(self, ctx):
-
-        await ctx.message.channel.send(f"Spend your snekbux at {self.bot.settings['shop_address']} !\n")
-
-    @commands.command()
     async def ident(self, ctx):
 
         u = ctx.message.author

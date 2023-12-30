@@ -546,7 +546,7 @@ class Tcg(commands.Cog):
         crds = self.bot.buxman.get_cards(uid)
 
         await ctx.message.channel.send(
-            f"Go here to see your card collection: {self.bot.settings['website']}/card_summary?user={uid}")
+            f"Go here to see your card collection: {self.bot.settings['website']}/static/card_summary?user={uid}")
 
         if not crds:
             await ctx.message.channel.send(f"You have no cards! Claim random loot crates, or type 'snek crate'"
@@ -792,7 +792,7 @@ class Tcg(commands.Cog):
         else:
             await ctx.message.channel.send(f"```{restable}```")
 
-        await ctx.message.channel.send(f"Also go to {self.bot.settings['website']}/card_search to more easily view cards!")
+        await ctx.message.channel.send(f"Also go to {self.bot.settings['website']}/static/card_search to more easily view cards!")
 
     @commands.command()
     @annoy

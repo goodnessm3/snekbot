@@ -738,7 +738,7 @@ class Manager:
     def card_search(self, astr):
 
         words = astr.split(" ")
-        part = '''(card_name LIKE %s OR series LIKE %s)'''
+        part = '''(card_name ILIKE %s OR series LIKE %s)'''  # ILIKE = case-insensitive
         start = '''SELECT serial, screen_name, card_name, series FROM cards 
                     INNER JOIN names ON 
                     names.uid = cards.owner WHERE
