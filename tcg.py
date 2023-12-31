@@ -166,7 +166,7 @@ class Tcg(commands.Cog):
 
         self.bot.loop.call_later(10, lambda: asyncio.ensure_future(self.update_guaranteed_cards()))
         self.bot.loop.call_later(43200, lambda: asyncio.ensure_future(self.run_vault_checks()))
-        self.bot.loop.call_later(6, lambda: asyncio.ensure_future(self.charge_vault_fees()))
+        self.bot.loop.call_later(86400, lambda: asyncio.ensure_future(self.charge_vault_fees()))
 
     async def update_guaranteed_cards(self):
 

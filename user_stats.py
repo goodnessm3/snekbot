@@ -679,8 +679,11 @@ class Manager:
         WHERE serial IN %s''', (tuple(serial_list), ))
 
         res = self.cursor.fetchall()
-        return all(own in {owner1, owner2} for own, in res)
-        # trailing comma unpacks a single-value tuple: code for real tough guys
+        if not owner2:
+            return all(own == owner1 for own, in res)  # otherwise NULL compares true to None!!
+        else:
+            return all(own in {owner1, owner2} for own, in res)
+            # trailing comma unpacks a single-value tuple: code for real tough guys
         # we are going thru each owner and verifying they exist in the set of possible owners.
 
 
