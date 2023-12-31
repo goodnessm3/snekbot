@@ -1082,13 +1082,12 @@ class Tcg(commands.Cog):
             print(f"Removed all of {uid}'s cards from the vault.")
             msg += "All of your cards were removed from the vault and are not protected from being stolen!"
 
-        elif args[0] == "remove" or args[0] == "add":
+        elif (args[0] == "remove" or args[0] == "add") and len(args) > 1:
             valid = True
             if not all([serial_verifier.match(x) for x in args[1:]]):
                 msg += "There is a problem with the serial numbers."
                 valid = False
             if not self.bot.buxman.verify_ownership(args[1:], uid):
-                # TODO: more robust ownership verification e.g. 30750
                 msg += "You don't appear to own all those cards."
                 valid = False
 
