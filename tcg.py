@@ -1088,7 +1088,7 @@ class Tcg(commands.Cog):
             if not all([serial_verifier.match(x) for x in args[1:]]):
                 msg += "There is a problem with the serial numbers."
                 valid = False
-            if not self.bot.buxman.verify_ownership(args[1:], uid) and valid:
+            if valid and not self.bot.buxman.verify_ownership(args[1:], uid):
                 msg += "You don't appear to own all those cards."
                 valid = False
 
