@@ -246,12 +246,17 @@ class Manager:
 
     def get_peros_for_channels(self, uid, channels):
 
-        qstring = ",".join(["%s"]*len(channels))
-        sql = '''SELECT SUM(count) FROM peros WHERE userid = %s AND channelid IN ({})'''.format(qstring)
+        #qstring = ",".join(["%s"]*len(channels))
+        #sql = '''SELECT SUM(count) FROM peros WHERE userid = %s AND channelid IN ({})'''.format(qstring)
         # sqlite can't substitute in a list or tuple so we need to build the query string with the appropriate
         # number of %s's to satisfy the "IN" query, if passed a comma delimited string it will end up in quote marks
         # which breaks the query.
-        self.cursor.execute(sql, ((uid,) + tuple(channels)))  # execute with the string we built
+
+        # UPDATE: but now we are using PostgreSQL we can safely sub in a tuple instead
+
+        self.cursor.execute('''SELECT SUM(count) 
+        FROM peros 
+        WHERE userid = %s AND channelid IN %s''', (uid, tuple(channels)))
         res = self.cursor.fetchone()
         if res:
             return res[0]
@@ -658,22 +663,26 @@ class Manager:
     def verify_ownership(self, serial_list, owner1, owner2=None):
 
         """Return True only if all cards in serial list are owned either by 1 or 2"""
-        query_tuple = f'''({",".join(serial_list)})'''
-        self.cursor.execute(f'''SELECT DISTINCT(owner) FROM cards WHERE serial IN {query_tuple}''')
-        res = [x[0] for x in self.cursor.fetchall()]
-        print(res)
-        owner1 = int(owner1)
-        if owner2:
-            owner2 = int(owner2)
 
         if owner1 == owner2:
-            return False  # could have been devious
-        if owner1 in res and owner2 in res and len(res) == 2:
-            return True
-        if not owner2 and owner1 == res[0]:
-            return True  # checking a single user's ownership
-        else:
-            return False
+            return False  # could have been devious (but why?? Found this comment later)
+
+        self.cursor.execute('''SELECT COUNT(serial)
+        FROM cards
+        WHERE serial IN %s''', (tuple(serial_list),))
+
+        res = self.cursor.fetchone()[0]
+        if not res == len(serial_list):
+            return False  # some of the provided serial numbers don't even exist in the db
+
+        self.cursor.execute('''SELECT owner FROM cards 
+        WHERE serial IN %s''', (tuple(serial_list), ))
+
+        res = self.cursor.fetchall()
+        return all(own in {owner1, owner2} for own, in res)
+        # trailing comma unpacks a single-value tuple: code for real tough guys
+        # we are going thru each owner and verifying they exist in the set of possible owners.
+
 
     def verify_ownership_single(self, card, uid):
 
@@ -705,8 +714,10 @@ class Manager:
         print("a tuple", a_tuple)
         print("b tuple", b_tuple)
 
-        self.cursor.execute(f'''UPDATE cards SET owner = %s WHERE serial IN ({a_tuple})''', (b, ))
-        self.cursor.execute(f'''UPDATE cards SET owner = %s WHERE serial IN ({b_tuple})''', (a, ))
+        # self.cursor.execute(f'''UPDATE cards SET owner = %s WHERE serial IN ({a_tuple})''', (b, ))
+        # self.cursor.execute(f'''UPDATE cards SET owner = %s WHERE serial IN ({b_tuple})''', (a, ))
+        self.cursor.execute('''UPDATE cards SET owner = %s WHERE serial IN %s''', (b, tuple(a_cards)))
+        self.cursor.execute('''UPDATE cards SET owner = %s WHERE serial IN %s''', (a, tuple(b_cards)))
 
         self.db.commit()
 
@@ -714,8 +725,9 @@ class Manager:
 
         "Returns owner a, owner b, list of owner a's cards, list of owner b's cards"
 
-        query_tuple = f'''({",".join(serial_list)})'''
-        self.cursor.execute(f'''SELECT DISTINCT(owner) FROM cards WHERE serial IN {query_tuple}''')
+        # query_tuple = f'''({",".join(serial_list)})'''  # we are doing proper tuple substitution now
+        query_tuple = tuple(serial_list)
+        self.cursor.execute('''SELECT DISTINCT(owner) FROM cards WHERE serial IN %s''', (query_tuple,))
         res = [x[0] for x in self.cursor.fetchall()]
         if not res:
             raise KeyError("Serial does not exist")
@@ -725,12 +737,12 @@ class Manager:
             a = res[0]
             b = None
 
-        print(f"Distctinct owners are {a} and {b}")
-        self.cursor.execute(f'''SELECT serial FROM cards WHERE serial IN {query_tuple} AND owner = %s''', (a, ))
+        print(f"Distinct owners are {a} and {b}")
+        self.cursor.execute(f'''SELECT serial FROM cards WHERE serial IN %s AND owner = %s''', (query_tuple, a))
         a_cards = [x[0] for x in self.cursor.fetchall()]
         print("A's cards", a_cards)
         if b:
-            self.cursor.execute(f'''SELECT serial FROM cards WHERE serial IN {query_tuple} AND owner = %s''', (b,))
+            self.cursor.execute(f'''SELECT serial FROM cards WHERE serial IN %s AND owner = %s''', (query_tuple, b))
             b_cards = [x[0] for x in self.cursor.fetchall()]
         else:
             b_cards = []
@@ -880,11 +892,15 @@ class Manager:
 
         self.db.commit()
 
-    def vault_cards(self, uid, vault=True):
+    def vault_cards(self, uid, vault=True, ser=0):
 
         """Assumes we want uid's cards that are in the vault, but can also specify cards that are not in it."""
 
-        self.cursor.execute('''SELECT serial FROM cards WHERE owner = %s AND vault is %s''', (uid, vault))
+        self.cursor.execute('''SELECT serial FROM cards 
+        WHERE owner = %s 
+        AND vault is %s
+        AND serial > %s''', (uid, vault, ser))
+        # min serial number specified so people only lose AI cards while this is still in development
         results = self.cursor.fetchall()
         return [x[0] for x in results]
 
@@ -901,9 +917,9 @@ class Manager:
         if not lst:
             return  # somehow, no cards were stolen and postgres will complain if we
                     # give it an empty tuple
-        part = f'''({",".join([str(q) for q in lst])})'''
-        print("Nulling owner for ", part)
-        self.cursor.execute(f'''UPDATE cards SET owner = NULL WHERE serial IN {part}''')
+        #part = f'''({",".join([str(q) for q in lst])})'''
+        print("Nulling owner for ", lst)
+        self.cursor.execute(f'''UPDATE cards SET owner = NULL WHERE serial IN %s''', (tuple(lst),))
         self.db.commit()
 
     def set_auto_vault(self, uid, status):
@@ -920,8 +936,7 @@ class Manager:
 
         """Set vault status to True or False for cards in lst"""
 
-        part = f'''({",".join([str(q) for q in lst])})'''
-        self.cursor.execute(f'''UPDATE cards SET vault = %s WHERE serial IN {part}''', (status,))
+        self.cursor.execute(f'''UPDATE cards SET vault = %s WHERE serial IN %s''', (status, tuple(lst)))
         self.db.commit()
 
 

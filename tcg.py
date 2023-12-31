@@ -954,9 +954,20 @@ class Tcg(commands.Cog):
         vault_cards = self.bot.buxman.vault_cards(uid, True)
         return int((len(vault_cards) * self.vault_base)**self.vault_exponent)
 
+    def vault_fee_menu(self):
+
+        a = int((10 * self.vault_base) ** self.vault_exponent)
+        b = int((100 * self.vault_base) ** self.vault_exponent)
+        c = int((500 * self.vault_base) ** self.vault_exponent)
+
+        return f'''```CURRENT VAULT FEES:\n\n10 cards: {a} snekbux\n'''\
+        f'''100 cards: {b} snekbux\n'''\
+        f'''500 cards: {c} snekbux```'''
+
     def steal_card(self, uid):
 
-        non_vault_cards = self.bot.buxman.vault_cards(uid, False)
+        non_vault_cards = self.bot.buxman.vault_cards(uid, False, ser=9999)
+        # min serial number specified so people only lose AI cards while this is still in development
         degraded = 0
         for x in range(len(non_vault_cards)):
 
@@ -1035,7 +1046,7 @@ class Tcg(commands.Cog):
                 '''snek vault auto off: deactivate auto-add to vault\n''' \
                 '''snek vault none: remove all your cards from the vault\n'''\
                 '''snek vault add xxxxx, xxxxx... : add specific cards to the vault\n'''\
-                '''snek vault remove xxxxx, xxxxx.... : remove specific cards from the vault```'''
+                '''snek vault remove xxxxx, xxxxx.... : remove specific cards from the vault```''' + self.vault_fee_menu()
 
         if len(args) == 0:
             msg += (f" Your current daily vault fee is {self.calculate_vault_fee(uid)} snekbux"
@@ -1077,6 +1088,7 @@ class Tcg(commands.Cog):
                 msg += "There is a problem with the serial numbers."
                 valid = False
             if not self.bot.buxman.verify_ownership(args[1:], uid):
+                # TODO: more robust ownership verification e.g. 30750
                 msg += "You don't appear to own all those cards."
                 valid = False
 
