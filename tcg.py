@@ -10,6 +10,7 @@ import re
 from prettytable import PrettyTable
 from mydecorators import captcha, annoy
 from io import BytesIO
+import functools
 
 from discord import File
 
@@ -64,6 +65,14 @@ NPC_NAMES = ["Diogenes Pontifex (NPC)",
              "Audifax O'Hanlon (NPC)",
              "Blast Hardcheese (NPC)"]
 
+
+def THIEVES():
+
+    l1 = ["thieving", "nefarious", "mischievous", "scheming", "evil", "dastardly"]
+    l2 = ["scoundrels", "goblins", "hobgoblins", "snake-men", "rascals"]
+    return f'''{random.choice(l1)} {random.choice(l2)}'''
+
+
 serial_verifier = re.compile('''^[0-9]{5}$''')
 discord_id_verifier = re.compile('''^[0-9]{17,19}$''')  # can be 17 digits only if quite an old ID!
 
@@ -73,6 +82,10 @@ GACHA_LUCK_TIME = 180
 CRATE_COST_TIME = 120
 TRADE_TIMEOUT = 300
 DEFAULT_AUCTION_LENGTH = 2  # hours
+STOLEN = defaultdict(list)  # needs to be global so accessible by the decorator
+# a list of cards that got stolen. Players will be alerted
+# of these when they run a command decorated with the relevant check function
+CARD_IMAGE_PATH = None
 
 
 def time_print(flt):
@@ -86,12 +99,43 @@ def time_print(flt):
     return f"{days} days, {hours} hours, {minutes} minutes and {seconds} seconds"
 
 
+def vault_check(coro):
+
+    @functools.wraps(coro)
+    async def inner(*args, **kwargs):
+
+        ctx = args[1]
+        user = ctx.message.author.id
+        if user in STOLEN.keys():  # a card got stolen when the checks were run
+            stole2 = STOLEN.pop(user)  # pop because only want to do this once
+            stole = [str(x).zfill(5) for x in stole2]  # TODO this zfill nonsense is everywhere
+            im = Tcg.make_card_summary({"": stole})
+            data2 = BytesIO()
+            im.save(data2, format="PNG")
+            data2.seek(0)
+            data3 = File(data2, filename="image.png")
+            await ctx.send(f"Some of your cards were stolen by {THIEVES()}!"
+                           " Consider storing them in the *vault* to prevent theft."
+                           " Type 'snek vault' for options.", file=data3)
+
+        return await coro(*args, **kwargs)
+
+    return inner
+
+
 class Tcg(commands.Cog):
 
     def __init__(self, bot):
 
         self.bot = bot
         self.chan = self.bot.get_channel(bot.settings["robot_zone"])
+        self.vault_base = bot.settings["vault_base"]
+        self.vault_exponent = bot.settings["vault_exponent"]
+        self.vault_steal = bot.settings["vault_steal_chance"]
+
+        global CARD_IMAGE_PATH
+        CARD_IMAGE_PATH = self.bot.settings["card_image_path"]
+
         self.claimed = False  # try to prevent double-claiming
         self.msg = None  # reference to the loot crate message so we can be sure we are getting reacts to the right one
         self.random_chances = defaultdict(lambda: 0)
@@ -121,6 +165,8 @@ class Tcg(commands.Cog):
         # turn off auctions for now till we are sure everything is stable
 
         self.bot.loop.call_later(10, lambda: asyncio.ensure_future(self.update_guaranteed_cards()))
+        self.bot.loop.call_later(43200, lambda: asyncio.ensure_future(self.run_vault_checks()))
+        self.bot.loop.call_later(6, lambda: asyncio.ensure_future(self.charge_vault_fees()))
 
     async def update_guaranteed_cards(self):
 
@@ -559,16 +605,18 @@ class Tcg(commands.Cog):
             serial = str(serial).zfill(5)  # leading zeroes
             dict_for_layout[series].append(serial)
 
-    def make_card_summary(self, files, small=False):
+    @staticmethod
+    def make_card_summary(files, small=False):
 
-        """Expects a dictionary of series:files so they can be grouped appropriately"""
+        """Expects a dictionary of series:files so they can be grouped appropriately
+        needs to be static so the decorator can access it"""
 
         if small:
             width = min(3000, len(files[""])*300)  # this dict is not keyed by series, just by empty string
         else:
             width = 3000
 
-        height = 600 * self.calc_height(files)  # how many rows of 10?
+        height = 600 * Tcg.calc_height(files)  # how many rows of 10?
         black = Image.new("RGB", (width, height), (0, 0, 0))
 
         x = 0
@@ -582,7 +630,7 @@ class Tcg(commands.Cog):
                 done.append(k)
                 for q in v:
 
-                    image_path = os.path.join(self.bot.settings["card_image_path"], f"{q}.jpg")
+                    image_path = os.path.join(CARD_IMAGE_PATH, f"{q}.jpg")
                     im = Image.open(image_path)
                     black.paste(im, (x, y))
                     x += 300
@@ -595,7 +643,8 @@ class Tcg(commands.Cog):
         else:
             return black
 
-    def calc_height(self, files):
+    @staticmethod
+    def calc_height(files):
 
         tot = 0
         for v in files.values():
@@ -605,6 +654,7 @@ class Tcg(commands.Cog):
     @commands.command()
     @captcha
     @annoy
+    @vault_check
     async def crate(self, ctx):
 
         cost = self.crate_cost[ctx.message.author.id]
@@ -796,6 +846,7 @@ class Tcg(commands.Cog):
 
     @commands.command()
     @annoy
+    @vault_check
     async def burn(self, ctx, *args):
 
         uid = ctx.message.author.id
@@ -897,6 +948,163 @@ class Tcg(commands.Cog):
         self.cash_offer_quantities[m.id] = (amount, serial)
 
         self.bot.loop.call_later(7200, lambda: asyncio.ensure_future(self.cleanup_cash_offer(m.id)))
+
+    def calculate_vault_fee(self, uid):
+
+        vault_cards = self.bot.buxman.vault_cards(uid, True)
+        return int((len(vault_cards) * self.vault_base)**self.vault_exponent)
+
+    def steal_card(self, uid):
+
+        non_vault_cards = self.bot.buxman.vault_cards(uid, False)
+        degraded = 0
+        for x in range(len(non_vault_cards)):
+
+            # every time this check is made, there is a chance per card that it will be stolen.
+
+            chance = random.random()  # a float between 0 and 1
+            threshold = self.vault_steal / 100.0  # the value in the settings is a percentage
+            if chance < threshold:
+                print("steal threshold failed")
+                degraded += 1
+                # there is probably a better and more mathy way to do this idk
+
+        if degraded:
+            return random.sample(non_vault_cards, degraded)  # randomly select serials rather than bias towards early
+
+    async def run_vault_checks(self):
+
+        print("Running vault checks")
+        global STOLEN  # todo: can we do this without a global variable
+        # are they really so bad?
+
+        to_steal = []
+
+        for uid in self.bot.buxman.card_owners():
+            print(f"steal check for {uid}")
+            res = self.steal_card(uid)
+            if res:
+                STOLEN[uid].extend(res)
+                to_steal.extend(res)  # accumulate everything that got stolen
+
+        print("The following cards were stolen:")
+        print(to_steal)
+        self.bot.buxman.null_owner(to_steal)  # single transaction to handle all of it
+
+        self.bot.loop.call_later(86400, lambda: asyncio.ensure_future(self.run_vault_checks()))
+
+    async def charge_vault_fees(self):
+
+        print("Charging vault fees")
+        non_payers = []
+
+        for uid in self.bot.buxman.card_owners():
+            print(f"Getting data for uid: {uid}")
+            fee = self.calculate_vault_fee(uid)
+            balance = self.bot.buxman.get_bux(uid)
+            if balance >= fee:
+                print(f"Charged {uid} a vault fee of {fee}.")
+                self.bot.buxman.adjust_bux(uid, -fee)
+            else:
+                print(f"{uid} couldn't afford vault fee, evicting cards.")
+                all_cards = self.bot.buxman.get_cards(uid)
+                serials = [x[0] for x in all_cards]  # don't care about series name
+                self.bot.buxman.change_vault_status(serials, False)
+                non_payers.append(uid)
+
+        msg = "Card vault storage fees have been charged. Type 'snek vault' for more info.\n"
+        for q in non_payers:
+            msg += f"<@!{q}> was unable to pay, all their cards have been evicted from the vault!\n"
+        await self.chan.send(msg)
+
+        self.bot.loop.call_later(86400, lambda: asyncio.ensure_future(self.charge_vault_fees()))
+
+    @commands.command()
+    async def vault(self, ctx, *args):
+
+        vault_words = {True: "ON", False: "OFF"}
+        uid = ctx.message.author.id
+        av_status = self.bot.buxman.get_auto_vault(uid)
+        total_cards = len(self.bot.buxman.get_cards(uid))
+        vault_cards = len(self.bot.buxman.vault_cards(uid))
+        msg = ""  # a string to add to with results of the commands
+        image = None
+        # message that gives plater hte options
+        help_msg = '''```VAULT COMMANDS:\n\nsnek vault all: add all your current cards to the vault\n'''\
+                '''snek vault auto on: all cards you acquire are automatically added to the vault\n''' \
+                '''snek vault auto off: deactivate auto-add to vault\n''' \
+                '''snek vault none: remove all your cards from the vault\n'''\
+                '''snek vault add xxxxx, xxxxx... : add specific cards to the vault\n'''\
+                '''snek vault remove xxxxx, xxxxx.... : remove specific cards from the vault```'''
+
+        if len(args) == 0:
+            msg += (f" Your current daily vault fee is {self.calculate_vault_fee(uid)} snekbux"
+                    f" ({vault_cards} of {total_cards} stored)."
+                    f" Auto vault storage is {vault_words[av_status]}."
+                    f" You can view which cards are stored in your card_summary."
+                    f" Cards stored outside the vault may be stolen by {THIEVES()}.")
+            await ctx.send(msg)
+            await ctx.send(help_msg)
+            return
+
+        elif args[0] == "all":
+            ls1 = self.bot.buxman.get_cards(uid)
+            ls = [x[0] for x in ls1]  # get_cards returns tuples of (serial, series)
+            self.bot.buxman.change_vault_status(ls, True)
+            print(f"Put all of {uid}'s cards in the vault.")
+            msg += "All your cards were added to the vault."
+
+        elif args[0] == "auto" and len(args) > 1:
+            if args[1] == "on":
+                self.bot.buxman.set_auto_vault(uid, True)
+                print(f"auto vault Activated for {uid}")
+                msg += "Your new cards will automatically be stored in the vault."
+            elif args[1] == "off":
+                self.bot.buxman.set_auto_vault(uid, False)
+                print(f"auto vault deactivated for {uid}")
+                msg += "Your new cards will NOT be automatically stored in the vault."
+
+        elif args[0] == "none":
+            ls1 = self.bot.buxman.get_cards(uid)
+            ls = [x[0] for x in ls1]  # get_cards returns tuples of (serial, series)
+            self.bot.buxman.change_vault_status(ls, False)
+            print(f"Removed all of {uid}'s cards from the vault.")
+            msg += "All of your cards were removed from the vault and are not protected from being stolen!"
+
+        elif args[0] == "remove" or args[0] == "add":
+            valid = True
+            if not all([serial_verifier.match(x) for x in args[1:]]):
+                msg += "There is a problem with the serial numbers."
+                valid = False
+            if not self.bot.buxman.verify_ownership(args[1:], uid):
+                msg += "You don't appear to own all those cards."
+                valid = False
+
+            if valid:
+                if args[0] == "add":
+                    chg = True
+                    msg += "These cards were added to the vault:"
+                else:
+                    chg = False
+                    msg += "These cards were removed from the vault:"
+                self.bot.buxman.change_vault_status(args[1:], chg)
+                im = Tcg.make_card_summary({"": args[1:]})
+                data2 = BytesIO()
+                im.save(data2, format="PNG")
+                data2.seek(0)
+                image = File(data2, filename="image.png")
+
+        else:
+            await ctx.send("Please check your command and try again.")
+            await ctx.send(help_msg)
+            return
+
+        msg += f" Your current daily vault fee is {self.calculate_vault_fee(uid)} snekbux."
+
+        if not image:
+            await ctx.send(msg)
+        else:
+            await ctx.send(msg, file=image)
 
 
 async def setup(bot):

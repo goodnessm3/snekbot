@@ -567,7 +567,11 @@ class Manager:
 
     def add_card(self, uid, card):
 
-        self.cursor.execute('''UPDATE cards SET owner = %s, guarantee_time = NULL WHERE serial = %s''', (uid, card))
+        auto_vault = self.get_auto_vault(uid)
+        self.cursor.execute('''UPDATE cards SET owner = %s, 
+        guarantee_time = NULL,
+        vault = %s 
+        WHERE serial = %s''', (uid, auto_vault, card))
         # in case it was a guaranteed card, get rid of the guarantee timestamp
         self.cursor.execute('''SELECT timedelta FROM cards WHERE serial = %s''', (card,))
         td = self.cursor.fetchone()[0]
@@ -580,7 +584,7 @@ class Manager:
 
     def remove_card(self, card):
 
-        self.cursor.execute('''UPDATE cards SET owner = NULL WHERE serial = %s''', (card,))
+        self.cursor.execute('''UPDATE cards SET owner = NULL, vault = NULL WHERE serial = %s''', (card,))
         self.db.commit()
 
     def get_cards(self, uid):
@@ -758,8 +762,6 @@ class Manager:
 
     def get_graph_data(self, tag, time_ago=14):
 
-        # TODO: the timestamps are wacky!!
-
         """compiles a list of data points to plot a graph of a tag's trend over time. Returns a cumulative sum
         by date that the tag deltas table was updated."""
 
@@ -877,6 +879,56 @@ class Manager:
                                 SET next_runtime = next_runtime + timedelta WHERE serial = %s''', (serial,))
 
         self.db.commit()
+
+    def vault_cards(self, uid, vault=True):
+
+        """Assumes we want uid's cards that are in the vault, but can also specify cards that are not in it."""
+
+        self.cursor.execute('''SELECT serial FROM cards WHERE owner = %s AND vault is %s''', (uid, vault))
+        results = self.cursor.fetchall()
+        return [x[0] for x in results]
+
+    def card_owners(self):
+
+        self.cursor.execute('''SELECT DISTINCT owner FROM cards WHERE owner IS NOT NULL''')
+        results = self.cursor.fetchall()
+        return [x[0] for x in results]
+
+    def null_owner(self, lst):
+
+        """Set the owner to NULL of all cards in the list of serial numbers"""
+
+        if not lst:
+            return  # somehow, no cards were stolen and postgres will complain if we
+                    # give it an empty tuple
+        part = f'''({",".join([str(q) for q in lst])})'''
+        print("Nulling owner for ", part)
+        self.cursor.execute(f'''UPDATE cards SET owner = NULL WHERE serial IN {part}''')
+        self.db.commit()
+
+    def set_auto_vault(self, uid, status):
+
+        self.cursor.execute('''UPDATE stats SET auto_vault = %s WHERE uid = %s''', (status, uid))
+        self.db.commit()
+
+    def get_auto_vault(self, uid):
+
+        self.cursor.execute('''SELECT auto_vault FROM stats WHERE uid = %s''', (uid,))
+        return self.cursor.fetchone()[0]
+
+    def change_vault_status(self, lst, status):
+
+        """Set vault status to True or False for cards in lst"""
+
+        part = f'''({",".join([str(q) for q in lst])})'''
+        self.cursor.execute(f'''UPDATE cards SET vault = %s WHERE serial IN {part}''', (status,))
+        self.db.commit()
+
+
+
+
+
+
 
 
 
