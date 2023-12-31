@@ -1084,10 +1084,11 @@ class Tcg(commands.Cog):
 
         elif (args[0] == "remove" or args[0] == "add") and len(args) > 1:
             valid = True
+
             if not all([serial_verifier.match(x) for x in args[1:]]):
                 msg += "There is a problem with the serial numbers."
                 valid = False
-            if not self.bot.buxman.verify_ownership(args[1:], uid):
+            if not self.bot.buxman.verify_ownership(args[1:], uid) and valid:
                 msg += "You don't appear to own all those cards."
                 valid = False
 
