@@ -51,9 +51,13 @@ def make_holographic(pilimg, opacity=0.75):
 def make_card(name, url, series, serial_no, n, m, attack, defense, mana, bg_col, holo=False):
 
     im1 = Image.open(BASE_CARD_PATH)
-    remote_image = requests.get(url)
-    byts = BytesIO(remote_image.content)
-    charimage = Image.open(byts)
+    
+    #remote_image = requests.get(url)
+    #byts = BytesIO(remote_image.content)
+    #charimage = Image.open(byts)
+    
+    charimage = Image.open(url)  # !!CHANGED
+    
     #if holo:
         #charimage = make_holographic(charimage)
     blank = Image.new("RGBA", im1.size, bg_col)

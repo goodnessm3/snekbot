@@ -12,6 +12,7 @@ class Stream(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.stream_thumbnail_url = self.bot.settings["stream_thumbnail_url"]
+        self.plant_thumbnail_url = self.bot.settings["plant_thumbnail_url"]
         self.source = self.bot.settings["time_token_source"]
         self.secret = self.bot.settings["time_token_secret"]  # the credential to use to get a key from the source
 
@@ -34,6 +35,32 @@ class Stream(commands.Cog):
         video_list = "\n".join(out)
         await ctx.send(f'''```Snek video queue:\n\n{video_list}```''')
 
+    async def image_from_stream(self, stream_url):
+
+        # for Windows
+        #cmd = f'''ffmpeg -i {self.plant_thumbnail_url} -f image2pipe -vframes 1 -q:v 2 -'''
+        # for Linux TODO: detect platform and run appropriate command
+        cmd = ["ffmpeg", "-i", f"{self.plant_thumbnail_url}", "-f", "image2pipe", "-vframes", "1", "-q:v", "2", "-"]
+        pipe = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 8)
+
+        try:
+            imagedata2 = pipe.communicate(timeout=15)
+        except sp.TimeoutExpired:
+            print("ffmpeg timed out getting thumbnails")
+            pipe.kill()
+            #await ctx.send("Error getting stream thumbnail, maybe the stream is broken.")
+            return
+
+        imagedata = imagedata2[0]
+        flo = BytesIO(imagedata)
+        return discord.File(flo, filename="image.jpg")
+
+    @commands.command()
+    async def plant(self, ctx):
+
+        discord_image = await self.image_from_stream(self.plant_thumbnail_url)
+        await ctx.send("", file=discord_image)
+
     @commands.command()
     async def tv(self, ctx):
 
@@ -42,22 +69,7 @@ class Stream(commands.Cog):
                 async with timeout(10):
                     stream_token = await r.text()  # used to make a link valid for a limited time
 
-        # for Windows
-        #cmd = f'''ffmpeg -i {self.stream_thumbnail_url} -f image2pipe -vframes 1 -q:v 2 -'''
-        # for Linux TODO: detect platform and run appropriate command
-        cmd = ["ffmpeg", "-i", f"{self.stream_thumbnail_url}", "-f", "image2pipe", "-vframes", "1", "-q:v", "2", "-"]
-        pipe = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 8)
-
-        try:
-            imagedata2 = pipe.communicate(timeout=15)
-        except sp.TimeoutExpired:
-            print("ffmpeg timed out getting thumbnails")
-            pipe.kill()
-            await ctx.send("Error getting stream thumbnail, maybe the stream is broken.")
-            return
-
-        imagedata = imagedata2[0]
-        flo = BytesIO(imagedata)
+        discord_image = await self.image_from_stream(self.stream_thumbnail_url)
 
         with open(self.bot.settings["now_playing_file"], "r") as f:
             for line in f:
@@ -78,8 +90,7 @@ class Stream(commands.Cog):
         full_stream_url = self.bot.settings['stream_page'] + f'''?token={stream_token}'''
         await ctx.send(f"Now playing: {last} at {full_stream_url}. Next up: {next_up}. "
                        f"Type 'snek schedule' for full listing!",
-                       file=discord.File(flo,
-                        filename="image.jpg"))
+                       file=discord_image)
 
 
 async def setup(bot):

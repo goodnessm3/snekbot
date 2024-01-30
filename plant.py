@@ -19,7 +19,7 @@ class Plant(commands.Cog):
         self.waiting = False
         self.plant_url = self.bot.settings["plant_url"]
 
-    @commands.command()
+    # @commands.command()  # to be deprecated
     async def plant(self, ctx):
 
         self.expecting.add(ctx.message.channel.id)
