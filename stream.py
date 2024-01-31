@@ -13,6 +13,7 @@ class Stream(commands.Cog):
         self.bot = bot
         self.stream_thumbnail_url = self.bot.settings["stream_thumbnail_url"]
         self.plant_thumbnail_url = self.bot.settings["plant_thumbnail_url"]
+        self.plant_stream_url = self.bot.settings["plant_stream_url"]
         self.source = self.bot.settings["time_token_source"]
         self.secret = self.bot.settings["time_token_secret"]  # the credential to use to get a key from the source
 
@@ -40,7 +41,7 @@ class Stream(commands.Cog):
         # for Windows
         #cmd = f'''ffmpeg -i {self.plant_thumbnail_url} -f image2pipe -vframes 1 -q:v 2 -'''
         # for Linux TODO: detect platform and run appropriate command
-        cmd = ["ffmpeg", "-i", f"{self.plant_thumbnail_url}", "-f", "image2pipe", "-vframes", "1", "-q:v", "2", "-"]
+        cmd = ["ffmpeg", "-i", f"{stream_url}", "-f", "image2pipe", "-vframes", "1", "-q:v", "2", "-"]
         pipe = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 8)
 
         try:
@@ -48,7 +49,7 @@ class Stream(commands.Cog):
         except sp.TimeoutExpired:
             print("ffmpeg timed out getting thumbnails")
             pipe.kill()
-            #await ctx.send("Error getting stream thumbnail, maybe the stream is broken.")
+
             return
 
         imagedata = imagedata2[0]
@@ -59,7 +60,7 @@ class Stream(commands.Cog):
     async def plant(self, ctx):
 
         discord_image = await self.image_from_stream(self.plant_thumbnail_url)
-        await ctx.send("", file=discord_image)
+        await ctx.send(f"Watch live at {self.plant_stream_url} !", file=discord_image)
 
     @commands.command()
     async def tv(self, ctx):
