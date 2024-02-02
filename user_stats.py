@@ -686,7 +686,6 @@ class Manager:
             # trailing comma unpacks a single-value tuple: code for real tough guys
         # we are going thru each owner and verifying they exist in the set of possible owners.
 
-
     def verify_ownership_single(self, card, uid):
 
         self.cursor.execute('''SELECT owner FROM cards WHERE serial = %s''', (int(card),))
@@ -942,7 +941,15 @@ class Manager:
         self.cursor.execute(f'''UPDATE cards SET vault = %s WHERE serial IN %s''', (status, tuple(lst)))
         self.db.commit()
 
+    def log_chatgpt_message(self, uid, cid, role, message, tokens, moderated=False):
 
+        """Keep a record of interactions with ChatGPT for moderation, etc"""
+
+        self.cursor.execute(
+            '''INSERT INTO chats (uid, channelid, role, message, tokens, moderated) 
+            VALUES (%s, %s, %s, %s, %s, %s)''',
+            (uid, cid, role, message, tokens, moderated))
+        self.db.commit()
 
 
 

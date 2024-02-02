@@ -43,7 +43,7 @@ cb = CleverWrap(settings["cleverbot_token"])
 bot.last_chat = datetime.datetime.now()  # to determine when to reset the cleverbot interaction
 bot.cbchannels = settings["cleverbot_channels"]
 
-chat_client = chatgpt.ConvoTracker()
+chat_client = chatgpt.ConvoTracker(buxman=bot.buxman)
 
 with open("snektext.json", "r") as f:
     bot.text = json.load(f)
@@ -377,7 +377,9 @@ async def on_message(message):
             if (now - bot.last_chat).seconds > 500:
                 cb.reset()  # don't resume an old conversation, start a new one
             async with message.channel.typing():
-                response = await chat_client.get_moderated_response(message.author.id, message.content[5:])
+                response = await chat_client.get_moderated_response(message.author.id,
+                                                                    message.channel.id,
+                                                                    message.content[5:])
                 # strip off "snek "
             await message.channel.send(response)
             bot.last_chat = datetime.datetime.now()
