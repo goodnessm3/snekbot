@@ -377,7 +377,8 @@ async def on_message(message):
             if (now - bot.last_chat).seconds > 500:
                 cb.reset()  # don't resume an old conversation, start a new one
             async with message.channel.typing():
-                response = await chat_client.get_response(message.author.id, message.content[5:])  # strip off "snek "
+                response = await chat_client.get_moderated_response(message.author.id, message.content[5:])
+                # strip off "snek "
             await message.channel.send(response)
             bot.last_chat = datetime.datetime.now()
             return  # don't also try to process it as a command
