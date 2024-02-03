@@ -2,6 +2,7 @@ import psycopg2
 import re
 from collections import defaultdict
 import datetime
+import hashlib
 
 
 def get_max(dc):
@@ -951,6 +952,33 @@ class Manager:
             (uid, cid, role, message, tokens, moderated))
         self.db.commit()
 
+    def uid_to_screen_name(self, uid):
+
+        self.cursor.execute("SELECT screen_name FROM names WHERE uid = %s", (uid,))
+        if q := self.cursor.fetchone():
+            return q[0]
+
+    def get_anonymous_uid(self, uid):
+
+        """Get an anonymized ID to track ChatGPT correspondence. Generate a new one if it doesn't already exist"""
+
+        self.cursor.execute("SELECT anonymous_id FROM names WHERE uid = %s", (uid,))
+        result = self.cursor.fetchone()
+
+        if result and result[0]:  # the uid at least exists in the DB, but might not have a hash yet
+            # a tuple (None,) evaluates to True!! We can risk unpacking a NoneType here because it will
+            # never happen, if result is None then result[0] will never be tried
+            return result[0]
+        else:
+
+            # first time we are hashing the uid, insert then return it
+            salt = self.bot.settings["chatgpt_salt"]
+            hasher = hashlib.sha256()
+            hasher.update((str(uid) + salt).encode("UTF-8"))
+            hashed = hasher.hexdigest()
+            self.cursor.execute('''UPDATE names SET anonymous_id = %s WHERE uid = %s''', (hashed, uid))
+            self.db.commit()
+            return hashed
 
 
 

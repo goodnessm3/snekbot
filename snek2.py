@@ -170,6 +170,14 @@ async def update(ctx):
         await ctx.message.channel.send(str(e))
 
 
+@bot.command()
+@commands.check(is_owner)
+async def reprompt(ctx):
+
+    chat_client.reload_prompt()
+    await ctx.send("Reloaded prompt!")
+
+
 @bot.event
 async def on_ready():
 

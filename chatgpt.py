@@ -5,9 +5,12 @@ from collections import deque
 import json
 import asyncio
 from utility import LeakyBuckets
-
+import re
+import hashlib
 
 rl = chr(128680)  # emoji siren light character for moderation message
+DISCORD_ID_FINDER = re.compile("<@[0-9]+>")
+DISCORD_ID_EXTRACTOR = re.compile("<@([0-9]+)>")
 
 
 class ConvoTracker:
@@ -24,6 +27,28 @@ class ConvoTracker:
         self.moderated = LeakyBuckets(2, 10)  # no more than 2 moderation failures, decrement every 600s
         # record how many times a user trips the moderation filters. Temporarily disable function if they are too crazy.
         self.buxman = buxman  # need a reference to this to log convos
+
+    def reload_prompt(self):
+
+        with open("chatgpt_settings.json", "r") as f:
+            js = json.load(f)
+            self.prompt = js["prompt"]
+
+    def substitute_uids(self, astr):
+
+        ids = DISCORD_ID_FINDER.findall(astr)
+        if not ids:
+            return astr  # nothing to do, the most frequent case
+        mapping = {}
+        for x in ids:
+            numeric = DISCORD_ID_EXTRACTOR.search(x)
+            name = self.buxman.uid_to_screen_name(numeric.groups()[0])
+            mapping[x] = name
+
+        for k, v in mapping.items():
+            astr = astr.replace(k, v)
+
+        return astr
 
     async def get_moderation(self, uid, message):
 
@@ -42,6 +67,8 @@ class ConvoTracker:
 
         """Returns the answer, and the amount of prompt tokens and completion tokens it used."""
 
+        message = self.substitute_uids(message)  # replace discord mentions with the actual screen name
+
         last_query = self.times.get(uid, None)
         now = datetime.datetime.now()
 
@@ -55,10 +82,12 @@ class ConvoTracker:
         self.tracking[uid].append({"role": "user", "content": message})
         # push new message into deque, old one will be lost
         base = [{"role": "system", "content": self.prompt}]
+        anon = self.buxman.get_anonymous_uid(uid)
         response = await self.client.chat.completions.create(messages=base + list(self.tracking[uid]),
                                                              model="gpt-3.5-turbo",
                                                              temperature=0.6,
-                                                             top_p=0.6)
+                                                             top_p=0.6,
+                                                             user=anon)
         answer = response.choices[0].message.content
         pt = response.usage.prompt_tokens
         ct = response.usage.completion_tokens
