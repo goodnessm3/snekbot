@@ -46,7 +46,8 @@ class ConvoTracker:
             mapping[x] = name
 
         for k, v in mapping.items():
-            astr = astr.replace(k, v)
+            if v:  # don't try to substitute a None, this might happen if the user isn't in the names table somehow
+                astr = astr.replace(k, v)
 
         return astr
 
