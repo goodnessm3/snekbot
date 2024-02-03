@@ -389,7 +389,12 @@ async def on_message(message):
                                                                     message.channel.id,
                                                                     message.content[5:])
                 # strip off "snek "
-            await message.channel.send(response)
+            if len(response) > 4000:
+                await message.channel.send(response[:3900])
+                await message.channel.send(response[3900:])
+                # there's no way we get something longer than 8k as there is a token limit for output
+            else:
+                await message.channel.send(response)
             bot.last_chat = datetime.datetime.now()
             return  # don't also try to process it as a command
 

@@ -88,7 +88,8 @@ class ConvoTracker:
                                                              model="gpt-3.5-turbo",
                                                              temperature=0.6,
                                                              top_p=0.6,
-                                                             user=anon)
+                                                             user=anon,
+                                                             max_tokens=2500)
         answer = response.choices[0].message.content
         pt = response.usage.prompt_tokens
         ct = response.usage.completion_tokens
@@ -103,6 +104,9 @@ class ConvoTracker:
 
         if self.moderated.check_user(uid):  # it returns True if user has exceeded the threshold
             return "Blocked for tripping the content filter too many times, try again later."
+
+        if len(message) > 300:
+            message = "The user tried to submit a very long message, please ask them to submit shorter ones."
 
         result = asyncio.gather(self.get_response(uid, message), self.get_moderation(uid, message))
         answer_tuple, moderation = await result
