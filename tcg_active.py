@@ -498,7 +498,7 @@ class TcgActive(metaclass=SpecialMethodsMeta):
         chks = []
         fx = []
 
-        print(restuple)
+        # print(restuple)
 
         for tup in checks:
             a, b = tup
@@ -543,23 +543,23 @@ class ActiveCards(commands.Cog):
         """Runs regularly, looks in the DB for cards that need to be run and adds them into the bot loop
         if there's less than an hour until it runs. This is first added to the bot loop in the init method."""
 
-        print(f"Async check schedule function at {datetime.datetime.now()}")
-        print("Scheduled cards list is:", self.scheduled_cards)
+        # print(f"Async check schedule function at {datetime.datetime.now()}")
+        # print("Scheduled cards list is:", self.scheduled_cards)
 
         to_run = self.bot.buxman.get_scheduled_cards()
-        print("Cards to run from DB are: ", to_run)
+        # print("Cards to run from DB are: ", to_run)
 
         for tup in to_run:
             serial, time_to_run = tup  # time_to_run is a timedelta, the difference between now and when it's scheduled
 
             if time_to_run.days < 0: # a negative timedelta, which has negative days and then positive everything else
                 # next time was in the past, probably the bot has been turned off.
-                print(f"Card {serial} next runtime was in the past, updating its schedule")
+                # print(f"Card {serial} next runtime was in the past, updating its schedule")
                 self.bot.buxman.reschedule_card(serial, reset=True)  # update the interval into the future
                 # reset just adds the current time to the time interval of the card
                 # this is an imperfect solution if the time delta is really long, like several days
             else:
-                print(f"Card {serial} will run after {time_to_run}")
+                # print(f"Card {serial} will run after {time_to_run}")
                 if not serial in self.scheduled_cards:
                     #print(f"Scheduling an async task for card {serial}.")
                     #delta = time_to_run - datetime.datetime.now()  # this only works if ttr is in the future!

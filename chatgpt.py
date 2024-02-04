@@ -1,6 +1,6 @@
 from collections import defaultdict
 import datetime
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, BadRequestError
 from collections import deque
 import json
 import asyncio
@@ -22,7 +22,7 @@ class ConvoTracker:
             self.client = AsyncOpenAI(api_key=js["key"])
             self.prompt = js["prompt"]
 
-        self.tracking = defaultdict(lambda: deque(maxlen=6))  # record of {"role":x, "content":message} dicts
+        self.tracking = defaultdict(lambda: deque(maxlen=12))  # record of {"role":x, "content":message} dicts
         self.times = {}  # record when the user last interacted
         self.moderated = LeakyBuckets(2, 10)  # no more than 2 moderation failures, decrement every 600s
         # record how many times a user trips the moderation filters. Temporarily disable function if they are too crazy.
@@ -64,36 +64,48 @@ class ConvoTracker:
 
         return out
 
-    async def get_response(self, uid, message):
+    async def get_response(self, cid, message):
 
         """Returns the answer, and the amount of prompt tokens and completion tokens it used."""
 
         message = self.substitute_uids(message)  # replace discord mentions with the actual screen name
 
-        last_query = self.times.get(uid, None)
+        last_query = self.times.get(cid, None)
         now = datetime.datetime.now()
 
         if last_query:
             delta = now - last_query
             if delta.seconds > 900:
-                self.tracking[uid].clear()  # it's been more than 900 seconds, start fresh
+                self.tracking[cid].clear()  # it's been more than 900 seconds, start fresh
 
-        self.times[uid] = now  # update when most recently used
+        self.times[cid] = now  # update when most recently used
 
-        self.tracking[uid].append({"role": "user", "content": message})
+        self.tracking[cid].append({"role": "user", "content": message})
         # push new message into deque, old one will be lost
         base = [{"role": "system", "content": self.prompt}]
-        anon = self.buxman.get_anonymous_uid(uid)
-        response = await self.client.chat.completions.create(messages=base + list(self.tracking[uid]),
-                                                             model="gpt-3.5-turbo",
-                                                             temperature=0.6,
-                                                             top_p=0.6,
-                                                             user=anon,
-                                                             max_tokens=2500)
-        answer = response.choices[0].message.content
-        pt = response.usage.prompt_tokens
-        ct = response.usage.completion_tokens
-        self.tracking[uid].append({"role": "assistant", "content": answer})
+        anon = self.buxman.get_anonymous_uid(cid)
+        try:
+            response = await self.client.chat.completions.create(messages=base + list(self.tracking[cid]),
+                                                                 model="gpt-3.5-turbo",
+                                                                 temperature=0.8,
+                                                                 top_p=0.8,
+                                                                 user=anon,
+                                                                 max_tokens=2500)
+            # temp and top p changed to 0.8 from 0.6
+            answer = response.choices[0].message.content
+            context_length = response.usage.total_tokens
+            print(context_length)  # temporary, to track how much context is typically used
+            pt = response.usage.prompt_tokens
+            ct = response.usage.completion_tokens
+
+        except BadRequestError:
+            answer = "The context got too long, please try again."
+            pt = ct = 0
+            for x in range(4):
+                self.tracking[cid].popleft()  # pop the oldest 4 messages to cut down the context length
+
+        self.tracking[cid].append({"role": "assistant", "content": answer})
+
         try:
             return answer, pt, ct
         except Exception as e:
@@ -105,10 +117,10 @@ class ConvoTracker:
         if self.moderated.check_user(uid):  # it returns True if user has exceeded the threshold
             return "Blocked for tripping the content filter too many times, try again later."
 
-        if len(message) > 300:
+        if len(message) > 400:
             message = "The user tried to submit a very long message, please ask them to submit shorter ones."
 
-        result = asyncio.gather(self.get_response(uid, message), self.get_moderation(uid, message))
+        result = asyncio.gather(self.get_response(cid, message), self.get_moderation(uid, message))
         answer_tuple, moderation = await result
         # gather lets us run the moderation and answer simultaneously, so we don't delay the response too much
         if moderation:
