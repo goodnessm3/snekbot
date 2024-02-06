@@ -169,14 +169,6 @@ async def update(ctx):
         await ctx.message.channel.send(str(e))
 
 
-@bot.command()
-@commands.check(is_owner)
-async def reprompt(ctx):
-
-    bot.chat_client.reload_prompt()
-    await ctx.send("Reloaded prompt!")
-
-
 @bot.event
 async def on_ready():
 
@@ -272,12 +264,13 @@ async def bux(ctx):
         await ctx.message.channel.send(
             f"\nYou have gained {divi} snekbux from your investments since you last checked!")
 
-
+'''
 @bot.event
 async def on_command_error(ctx, error):
 
-    await ctx.message.channel.send(error)
-
+    await ctx.send("An error occurred!")
+    print(error)
+'''
 
 @bot.command()
 async def slots(ctx, *args):
@@ -375,12 +368,8 @@ async def on_message(message):
 
     if message.channel.id in bot.cbchannels:
         if ctx.command is None and message.content.startswith(tuple(prefixes)):
-            # the message is addressed to snek but doesn't contain a command, send the text to cleverbot for a response
-            #q = NickFind.findall(message.content)
-            #print(q)
-            #if q:
-            #    await message.channel.send(q)
-            #    return
+            # the message is addressed to snek but doesn't contain a command, send the text to ChatGPT for a response
+
             now = datetime.datetime.now()
             if (now - bot.last_chat).seconds > 500:
                 cb.reset()  # don't resume an old conversation, start a new one

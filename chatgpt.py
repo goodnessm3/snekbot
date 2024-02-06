@@ -160,7 +160,7 @@ class ConvoTracker(commands.Cog):
             return answer
 
     @commands.command()
-    async def newprompt(self, ctx, *args):
+    async def newprompt(self, ctx):
 
         '''Add a new system prompt for snek's personality'''
 
@@ -170,7 +170,15 @@ class ConvoTracker(commands.Cog):
             return
 
         uid = ctx.message.author.id
-        text = " ".join(args)
+        text = ctx.message.content
+
+        # we can't just ", ".join a list of args, because Discord's argument parser will get upset if some
+        # of them have quotation marks. So we just consider the entire message content and then strip off
+        # everything that might have been used to invoke the command, including the name of this function.
+        for x in self.bot.command_prefix:
+            text = text.lstrip(x)
+        text = text.lstrip("newprompt ")
+
         print("the text for the new prompt is: ", text)
         moderation_response = await self.get_moderation(uid, text)
         if moderation_response:
