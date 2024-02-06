@@ -30,7 +30,7 @@ class ConvoTracker(commands.Cog):
         self.moderated = LeakyBuckets(2, 10)  # no more than 2 moderation failures, decrement every 600s
         # record how many times a user trips the moderation filters. Temporarily disable function if they are too crazy.
         self.buxman = self.bot.buxman  # need a reference to this to log convos
-        self.chosen_prompts = defaultdict(lambda: 2)
+        self.chosen_prompts = defaultdict(lambda: 1)  # the default prompt in the DB is serial number 1
 
     def reload_prompt(self):
 
@@ -154,7 +154,7 @@ class ConvoTracker(commands.Cog):
             return answer
 
     @commands.command()
-    async def newprompt(self, ctx):
+    async def newprompt(self, ctx, *args):
 
         '''Add a new system prompt for snek's personality'''
 
@@ -164,7 +164,8 @@ class ConvoTracker(commands.Cog):
             return
 
         uid = ctx.message.author.id
-        text = ctx.message.content[11:]
+        text = " ".join(args)
+        print("the text for the new prompt is: ", text)
         moderation_response = await self.get_moderation(uid, text)
         if moderation_response:
             desc = ", ".join(moderation_response)
@@ -176,7 +177,7 @@ class ConvoTracker(commands.Cog):
             serial = old_serial + 1  # because this will be the next entry
         else:
             serial = 0  # all this code just to cope with the very first time the db is set up lol
-            
+
         self.buxman.insert_prompt(uid, text)
 
         await ctx.send(f"Your prompt is ready to use. Type 'snek useprompt {serial}' to use in your own conversations."
