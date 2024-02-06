@@ -80,19 +80,19 @@ class ConvoTracker(commands.Cog):
         if last_query:
             delta = now - last_query
             if delta.seconds > 900:
-                self.tracking[uid].clear()  # it's been more than 900 seconds, start fresh
+                self.tracking[cid].clear()  # it's been more than 900 seconds, start fresh
 
         self.times[cid] = now  # update when most recently used
         wanted_prompt_serial = self.chosen_prompts[uid]
         prompt = self.bot.buxman.get_prompt(wanted_prompt_serial)
         print(f"responding to user {uid} with prompt #{wanted_prompt_serial}")
 
-        self.tracking[uid].append({"role": "user", "content": message})
+        self.tracking[cid].append({"role": "user", "content": message})
         # push new message into deque, old one will be lost
         base = [{"role": "system", "content": prompt}]
         anon = self.buxman.get_anonymous_uid(uid)
         try:
-            response = await self.client.chat.completions.create(messages=base + list(self.tracking[uid]),
+            response = await self.client.chat.completions.create(messages=base + list(self.tracking[cid]),
                                                                  model="gpt-3.5-turbo",
                                                                  temperature=0.8,
                                                                  top_p=0.8,
@@ -100,7 +100,7 @@ class ConvoTracker(commands.Cog):
                                                                  max_tokens=2500)
 
             print(base)
-            print(list(self.tracking[uid]))
+            print(list(self.tracking[cid]))
             # temp and top p changed to 0.8 from 0.6
             answer = response.choices[0].message.content
             context_length = response.usage.total_tokens
@@ -112,12 +112,12 @@ class ConvoTracker(commands.Cog):
             answer = "The context got too long, please try again."
             pt = ct = 0
             for x in range(4):
-                self.tracking[uid].popleft()  # pop the oldest 4 messages to cut down the context length
+                self.tracking[cid].popleft()  # pop the oldest 4 messages to cut down the context length
 
-        self.tracking[uid].append({"role": "assistant", "content": answer})
+        self.tracking[cid].append({"role": "assistant", "content": answer})
 
         try:
-            if wanted_prompt_serial > 0:
+            if wanted_prompt_serial > 1:
                 return f"[{wanted_prompt_serial}]: " + answer, pt, ct
             else:
                 return answer, pt, ct
@@ -194,6 +194,7 @@ class ConvoTracker(commands.Cog):
             await ctx.send("Expecting a serial number for a prompt to use.")
             return
 
+        self.tracking[ctx.message.channel.id].clear()  # clear all context otherwise the prompt might be disregarded
         self.chosen_prompts[ctx.message.author.id] = ser
         await ctx.send((f'''I'll respond to you using system prompt #{ser}. A full list of available prompts is at {self.bot.settings['prompt_list_url']}.'''))
 
