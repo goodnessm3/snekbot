@@ -12,6 +12,7 @@ from discord.ext import commands
 rl = chr(128680)  # emoji siren light character for moderation message
 DISCORD_ID_FINDER = re.compile("<@[0-9]+>")
 DISCORD_ID_EXTRACTOR = re.compile("<@([0-9]+)>")
+DEFAULT_PROMPT = 1
 
 
 class ConvoTracker(commands.Cog):
@@ -30,7 +31,7 @@ class ConvoTracker(commands.Cog):
         self.moderated = LeakyBuckets(2, 10)  # no more than 2 moderation failures, decrement every 600s
         # record how many times a user trips the moderation filters. Temporarily disable function if they are too crazy.
         self.buxman = self.bot.buxman  # need a reference to this to log convos
-        self.chosen_prompts = defaultdict(lambda: 1)  # the default prompt in the DB is serial number 1
+        self.chosen_prompts = defaultdict(lambda: DEFAULT_PROMPT)  # the default prompt in the DB is serial number 1
 
     def reload_prompt(self):
 
@@ -85,7 +86,12 @@ class ConvoTracker(commands.Cog):
         self.times[cid] = now  # update when most recently used
         wanted_prompt_serial = self.chosen_prompts[uid]
         prompt = self.bot.buxman.get_prompt(wanted_prompt_serial)
-        print(f"responding to user {uid} with prompt #{wanted_prompt_serial}")
+
+        if not prompt:
+            prompt = self.bot.buxman.get_prompt(DEFAULT_PROMPT)
+            # user selected a non existent serial number, just use default
+
+        #print(f"responding to user {uid} with prompt #{wanted_prompt_serial}")
 
         self.tracking[cid].append({"role": "user", "content": message})
         # push new message into deque, old one will be lost
@@ -99,12 +105,12 @@ class ConvoTracker(commands.Cog):
                                                                  user=anon,
                                                                  max_tokens=2500)
 
-            print(base)
-            print(list(self.tracking[cid]))
+            #print(base)
+            #print(list(self.tracking[cid]))
             # temp and top p changed to 0.8 from 0.6
             answer = response.choices[0].message.content
             context_length = response.usage.total_tokens
-            print(context_length)  # temporary, to track how much context is typically used
+            #print(context_length)  # temporary, to track how much context is typically used
             pt = response.usage.prompt_tokens
             ct = response.usage.completion_tokens
 
