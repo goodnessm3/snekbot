@@ -980,12 +980,25 @@ class Manager:
             self.db.commit()
             return hashed
 
+    def insert_prompt(self, uid, text):
 
+        self.cursor.execute('''INSERT INTO prompts (uid, prompt) VALUES (%s, %s)''', (uid, text))
+        self.db.commit()
 
+    def get_max_prompt_serial(self):
 
+        self.cursor.execute('''SELECT MAX(identifier) FROM prompts''')
+        res = self.cursor.fetchone()
+        return res[0]
 
+    def remove_prompt(self, serial):
 
+        self.cursor.execute('''DELETE FROM prompts WHERE identifier = %s''', (serial,))
+        self.db.commit()
 
+    def get_prompt(self, serial):
 
+        self.cursor.execute('''SELECT prompt FROM prompts WHERE identifier = %s''', (serial,))
+        return self.cursor.fetchone()[0]
 
 

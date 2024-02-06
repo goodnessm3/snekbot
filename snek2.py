@@ -43,7 +43,6 @@ cb = CleverWrap(settings["cleverbot_token"])
 bot.last_chat = datetime.datetime.now()  # to determine when to reset the cleverbot interaction
 bot.cbchannels = settings["cleverbot_channels"]
 
-chat_client = chatgpt.ConvoTracker(buxman=bot.buxman)
 
 with open("snektext.json", "r") as f:
     bot.text = json.load(f)
@@ -174,7 +173,7 @@ async def update(ctx):
 @commands.check(is_owner)
 async def reprompt(ctx):
 
-    chat_client.reload_prompt()
+    bot.chat_client.reload_prompt()
     await ctx.send("Reloaded prompt!")
 
 
@@ -193,6 +192,7 @@ async def on_ready():
                 print(f"Error loading {c} cog! See below:")
                 (print(e))
     print("loaded default cogs")
+
 
 @bot.command()
 async def test_cmd(ctx):
@@ -385,7 +385,7 @@ async def on_message(message):
             if (now - bot.last_chat).seconds > 500:
                 cb.reset()  # don't resume an old conversation, start a new one
             async with message.channel.typing():
-                response = await chat_client.get_moderated_response(message.author.id,
+                response = await bot.cogs["ConvoTracker"].get_moderated_response(message.author.id,
                                                                     message.channel.id,
                                                                     message.content[5:])
                 # strip off "snek "
