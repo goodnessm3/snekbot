@@ -186,13 +186,8 @@ class ConvoTracker(commands.Cog):
             await ctx.send(f"Prompt failed the filters: {desc}")
             return
 
-        old_serial = self.buxman.get_max_prompt_serial()
-        if old_serial:
-            serial = old_serial + 1  # because this will be the next entry
-        else:
-            serial = 0  # all this code just to cope with the very first time the db is set up lol
-
         self.buxman.insert_prompt(uid, text)
+        serial = self.buxman.get_max_prompt_serial()  # now we've inserted it, find out what serial number it got
 
         await ctx.send(f"Your prompt is ready to use. Type 'snek useprompt {serial}' to use in your own conversations."
                        f" A full list of available prompts is at {self.bot.settings['prompt_list_url']}.")
