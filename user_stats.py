@@ -46,11 +46,15 @@ class MyCursor:
 
     def fetchall(self):
 
-        return self.cur.fetchall()
+        res = self.cur.fetchall()
+        self.cur.close()
+        return res
 
     def fetchone(self):
 
-        return self.cur.fetchone()
+        res = self.cur.fetchone()
+        self.cur.close()
+        return res
 
 
 class Manager:
