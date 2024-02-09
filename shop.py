@@ -18,6 +18,7 @@ class Shop(commands.Cog):
         self.bot.buxman.anticipate_shop_activation(u.id, rand, u.display_name)
 
         try:
+            await ctx.send(f"Secret authentication code sent {chr(128521)}")
             await u.send(f"Visit this link to authenticate on the website: {self.bot.settings['website']}/authenticate/{rand}")
         except discord.Forbidden:
             await ctx.send("I need to be able to DM you a secret code, do you have DMs blocked?")

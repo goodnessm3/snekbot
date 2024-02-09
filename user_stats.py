@@ -18,6 +18,41 @@ def get_max(dc):
     return max_key, max_cnt
 
 
+class MyCursor:
+
+    """Looks and quacks like a normal SQL cursor but stores the connection string so that the connection can be
+    re-established if lost temporarily. Rolls back failed transactions so the entire bot doesn't grind to
+    a halt from one failed transaction."""
+
+    def __init__(self, conn_string):
+
+        self.conn_string = conn_string
+        self.conn = psycopg2.connect(conn_string)
+
+    def execute(self, *args, **kwargs):
+
+        self.cur = self.conn.cursor()
+        try:
+            self.cur.execute(*args, **kwargs)
+        except psycopg2.OperationalError:
+            print("DB Cursor connection error, reconnecting")
+            self.conn = psycopg2.connect(self.conn_string)
+            self.cur = self.conn.cursor()
+            self.cur.execute(*args, **kwargs)
+        except psycopg2.errors.InFailedSqlTransaction:
+            print("DB In failed transaction - rolling back")
+            self.conn.rollback()
+            self.cur.execute(*args, **kwargs)
+
+    def fetchall(self):
+
+        return self.cur.fetchall()
+
+    def fetchone(self):
+
+        return self.cur.fetchone()
+
+
 class Manager:
 
     """Class to manage a database of discord id relating to various attributes"""
@@ -27,9 +62,16 @@ class Manager:
     def __init__(self, bot):
 
         self.bot = bot
-        self.db = psycopg2.connect(self.bot.settings["postgres_string"])  # containing dbname, user, host, port, pwd
-        self.cursor = self.db.cursor()
+        self.cursor = MyCursor(self.bot.settings["postgres_string"])  # containing dbname, user, host, port, pwd
         self.input_checker = re.compile("[0-9A-Za-z!,.?&\"'+-]{,50}")
+
+    @property
+    def db(self):
+
+        """Introduced quite late after having written many funcs that expect a reference to the db. This way
+        we can still do commits and rollbacks outside the MyCursor object."""
+
+        return self.cursor.conn  # need to pull out a reference to the connection for db.commit()
 
     def check_input_string(self, astr):
 
@@ -726,7 +768,7 @@ class Manager:
 
     def get_owners(self, serial_list):
 
-        "Returns owner a, owner b, list of owner a's cards, list of owner b's cards"
+        """Returns owner a, owner b, list of owner a's cards, list of owner b's cards"""
 
         # query_tuple = f'''({",".join(serial_list)})'''  # we are doing proper tuple substitution now
         query_tuple = tuple(serial_list)
@@ -739,6 +781,8 @@ class Manager:
         elif len(res) == 1:
             a = res[0]
             b = None
+        else:
+            a = b = None  # should never happen
 
         print(f"Distinct owners are {a} and {b}")
         self.cursor.execute(f'''SELECT serial FROM cards WHERE serial IN %s AND owner = %s''', (query_tuple, a))
@@ -813,7 +857,6 @@ class Manager:
         for x in res:
             new = cumulatives[-1] + x[1]  # add the delta to the last value to get a cumulative sum
             cumulatives.append(new)
-            #dates.append(datetime.datetime.strptime(x[0][:16], "%Y-%m-%d %H:%M"))
             dates.append(x[0])
 
         return dates, cumulatives
@@ -1000,5 +1043,6 @@ class Manager:
 
         self.cursor.execute('''SELECT prompt FROM prompts WHERE identifier = %s''', (serial,))
         return self.cursor.fetchone()[0]
+
 
 
