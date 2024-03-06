@@ -139,8 +139,14 @@ class ConvoTracker(commands.Cog):
         if len(message) > 400:
             message = "The user tried to submit a very long message, please ask them to submit shorter ones."
 
-        result = asyncio.gather(self.get_response(uid, cid, message), self.get_moderation(uid, message))
-        answer_tuple, moderation = await result
+        # result = asyncio.gather(self.get_response(uid, cid, message), self.get_moderation(uid, message))
+        # answer_tuple, moderation = await result
+
+        # changed 03-05: get moderation first before chat message. Slight delay is worth it to not send
+        # offensive messages into the actual API
+
+        moderation = await self.get_moderation(uid, message)
+
         # gather lets us run the moderation and answer simultaneously, so we don't delay the response too much
         if moderation:
             st = f"{rl} Uh oh! Your message tripped the "
@@ -154,6 +160,9 @@ class ConvoTracker(commands.Cog):
             self.moderated.increment_user(uid)
             return st
         else:
+
+            answer_tuple = await self.get_response(uid, cid, message)
+
             answer, pt, ct = answer_tuple
             self.buxman.log_chatgpt_message(uid, cid, "user", message, pt)
             self.buxman.log_chatgpt_message(uid, cid, "assistant", answer, ct)
