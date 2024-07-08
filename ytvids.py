@@ -68,6 +68,8 @@ class Ytvids(commands.Cog):
             await ctx.send(f"{ment}: there was an error downloading your video, try again later.")
         elif resp["status"] == "video too long":
             await ctx.send(f"{ment}: your video is too long, only videos shorter than 1 hour are supported.")
+        elif resp["status"] == "livestream":
+            await ctx.send(f"{ment}: livestreams are currently not supported.")
         elif resp["status"] == "in progress" or resp["status"] == "in queue":
             # not done yet, try again later
             self.bot.loop.call_later(DOWNLOAD_POLL_INTERVAL,
