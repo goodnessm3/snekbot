@@ -1,8 +1,11 @@
+import asyncio
+
 from discord.ext import commands
 import secrets
 import discord
-import os
-import asyncio
+import aiohttp
+from async_timeout import timeout
+
 
 class Shop(commands.Cog):
 

@@ -10,7 +10,6 @@ import re
 from user_stats import Manager
 import clean_text as ct
 import pronouns
-from cleverwrap import CleverWrap
 import os
 import subprocess
 import chatgpt
@@ -39,7 +38,6 @@ else:
 bot.settings = settings
 bot.buxman = Manager(bot)
 
-cb = CleverWrap(settings["cleverbot_token"])
 bot.last_chat = datetime.datetime.now()  # to determine when to reset the cleverbot interaction
 bot.cbchannels = settings["cleverbot_channels"]
 
@@ -371,8 +369,9 @@ async def on_message(message):
             # the message is addressed to snek but doesn't contain a command, send the text to ChatGPT for a response
 
             now = datetime.datetime.now()
-            if (now - bot.last_chat).seconds > 500:
-                cb.reset()  # don't resume an old conversation, start a new one
+            #if (now - bot.last_chat).seconds > 500:
+                #cb.reset()  # don't resume an old conversation, start a new one
+
             async with message.channel.typing():
                 response = await bot.cogs["ConvoTracker"].get_moderated_response(message.author.id,
                                                                     message.channel.id,
