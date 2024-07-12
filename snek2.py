@@ -53,7 +53,7 @@ def is_owner(ctx):
     return ctx.message.author.id == bot.settings["owner_id"]
 
 
-class NickFind():
+class NickFind:
 
     """This needs to appear like a compiled regex object with a findall method"""
 
@@ -141,6 +141,25 @@ async def reload(ctx, extension):
         await ctx.message.channel.send('''Reloaded {}'''.format(extension))
     except Exception as e:
         await ctx.message.channel.send(str(e))
+
+
+@bot.command()
+@commands.check(is_owner)
+async def rsett(ctx):
+
+    """Re-read the settings file and update the settings object"""
+
+    global TESTING
+    global settings
+
+    if TESTING:
+        pth = "settings_testing.json"
+    else:
+        pth = "settings.json"
+
+    with open(pth, "rb") as f:
+        settings = json.load(f)
+        await ctx.send(f"Reloaded settings from {pth}")
 
 
 @bot.command()
