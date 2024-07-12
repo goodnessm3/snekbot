@@ -65,7 +65,8 @@ class Ytvids(commands.Cog):
             thumb_loc = self.get_thumbnail(resp["url"])
             await ctx.send(f"{ment}: your file is ready for download!\n{alink}\n{vlink}", file=discord.File(thumb_loc))
         elif resp["status"] == "error":
-            await ctx.send(f"{ment}: there was an error downloading your video, try again later.")
+            msg = resp.get("message", "")
+            await ctx.send(f"{ment}: there was an error downloading your video: {msg}")
         elif resp["status"] == "video too long":
             await ctx.send(f"{ment}: your video is too long, only videos shorter than 1 hour are supported.")
         elif resp["status"] == "livestream":
