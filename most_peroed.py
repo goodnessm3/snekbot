@@ -165,7 +165,7 @@ class Mpero(commands.Cog):
         print(f"nothing found in message: {c}")
         return None, False  # still needs to be a 2-tuple to not break downstream fxns
 
-    async def save_image_from_url(self, url, dest="/var/www/html/bestof/"):
+    async def save_image_from_url(self, url, dest="/var/www/html/bestofhct/"):
 
         """Download and save an image for use in the gallery, from gelbooru or a discord attachment.
         Returns the name of the saved file."""
