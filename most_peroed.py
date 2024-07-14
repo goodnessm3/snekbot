@@ -110,7 +110,7 @@ class Mpero(commands.Cog):
                 print(f"Getting twitter embed snippet for {postid}")
                 snippet = await self.get_twitter_embed(url)
                 if not snippet:
-                    return  # something wrong with the twitter responses, stop updating for now
+                    continue
 
                 self.bot.buxman.add_twitter_embed(postid, channel, snippet)
                 print("Added twitter HTML snibbed :DDD")
