@@ -11,7 +11,7 @@ from io import BytesIO
 import os
 
 
-TWITTER_LINK_FINDER = re.compile('''((https://x.com|https://fixvx.com|https://vxtwitter.com)\S*)''')
+TWITTER_LINK_FINDER = re.compile('''((https://x.com|https://fixvx.com|https://vxtwitter.com|https://twitter.com)\S*)''')
 TO_REPLACE = ('''https://vxtwitter.com''', '''https://fixvx.com''')
 TRUE_X = '''https://x.com'''
 OEMBED_URL = '''https://publish.twitter.com/oembed'''
@@ -109,6 +109,8 @@ class Mpero(commands.Cog):
             if is_tweet:
                 print(f"Getting twitter embed snippet for {postid}")
                 snippet = await self.get_twitter_embed(url)
+                if not snippet:
+                    return  # something wrong with the twitter responses, stop updating for now
 
                 self.bot.buxman.add_twitter_embed(postid, channel, snippet)
                 print("Added twitter HTML snibbed :DDD")
@@ -211,7 +213,13 @@ class Mpero(commands.Cog):
             async with s.get(OEMBED_URL, data={"url": url}) as r:
                 async with timeout(10):
                     resp = await r.json()  # a status update or youtube link
-                    return resp["html"]
+                    try:
+                        ret = resp["html"]
+                    except:
+                        ret = None
+                        print("Error with twitter oembed:")
+                        print(resp)
+                    return ret
 
 
 async def setup(bot):
