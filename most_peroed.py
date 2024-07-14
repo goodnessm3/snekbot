@@ -178,6 +178,10 @@ class Mpero(commands.Cog):
             print(f"couldn't find extension in URL {url}, not saving image")
             return  # probably could get the data regardless and infer the extension, maybe one day
 
+        if ext == "webm":
+            print("Ignoring a webm")
+            return
+
         async with aiohttp.ClientSession(loop=self.bot.loop) as s:
             async with s.get(url) as r:
                 async with timeout(60):
