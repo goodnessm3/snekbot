@@ -8,6 +8,20 @@ from async_timeout import timeout
 from hashlib import md5  # for naming saved images
 from PIL import Image  # for resizing images to thumbnail
 from io import BytesIO
+import os
+
+
+TWITTER_LINK_FINDER = re.compile('''((https://x.com|https://fixvx.com|https://vxtwitter.com)\S*)''')
+TO_REPLACE = ('''https://vxtwitter.com''', '''https://fixvx.com''')
+TRUE_X = '''https://x.com'''
+OEMBED_URL = '''https://publish.twitter.com/oembed'''
+IMGURL_FINDER = re.compile('''https://.+gelbooru.com/{1,2}images/.+\.(?:jpg|png)''')
+# images / any number of non whitespace up to a ., then either .jpg or .png, in non-capturing parentheses
+# sometimes we get two //'s between .com and images???
+DISCORD_EXTENSION_FINDER = re.compile('''([a-z]{3,4})\?ex=''')  # get the first group from this
+# the extension for a discord path is buried in the middle of the url, they changed it so that the content links
+# arent permanent, I think.
+TERMINAL_EXTENSION_FINDER = re.compile('''\.([a-z]{3,4})$''')  # for URLs that end in the extension
 
 
 def resize(tup):
@@ -17,6 +31,35 @@ def resize(tup):
     x, y = tup
     ratio = 300.0 / x
     return int(x * ratio), int(y * ratio)
+
+
+def extract_twitter_url(astr):
+
+    """Pull a link from twitter OR any of the "fixing" services from a string, return the converted URL"""
+
+    if found := TWITTER_LINK_FINDER.search(astr):
+        return convert_twitter_url(found.group())
+    return None
+
+
+def extract_gelbooru_url(astr):
+
+    if found := IMGURL_FINDER.search(astr):
+        return found.group()
+
+
+def convert_twitter_url(astr):
+
+    """Replace any of the twitter alternatives with the actual twitter URL to send to the embedding API"""
+
+    if astr.startswith(TRUE_X):
+        return astr
+    else:
+        for alt in TO_REPLACE:
+            if astr.startswith(alt):
+                out = astr.replace(alt, TRUE_X)
+                return out
+        return None  # for some reason the func got passed a URL which is not actually a tweet? Shouldn't happen
 
 
 class Mpero(commands.Cog):
@@ -55,15 +98,26 @@ class Mpero(commands.Cog):
         best_pictures = self.bot.buxman.get_best_of()
         for tup in best_pictures:
             postid, channel = tup
-            url = await self.get_image_url(postid, channel)
+            url, is_tweet = await self.get_image_url(postid, channel)
+
             if not url:  # not all peroed posts will have an image, so don't try to download one
                 self.bot.buxman.add_image_link(postid, channel, url, None, failed=True)
                 # record that there was no image, so we don't continually re-try
                 print(f"No image associated with postid {postid} in channel {channel}")
+                continue
+
+            if is_tweet:
+                print(f"Getting twitter embed snippet for {postid}")
+                snippet = await self.get_twitter_embed(url)
+
+                self.bot.buxman.add_twitter_embed(postid, channel, snippet)
+                print("Added twitter HTML snibbed :DDD")
+
             else:
                 print(f"Getting image from peroed URL {url}")
                 try:
                     thumb = await self.save_image_from_url(url)  # returns the name (md5 hash) of the thumbnail
+                    # update: now we are saving the full size image
                 except Exception as e:
                     print(e)  # sometimes PIL won't be able to read the URL for whatever reason, e.g. it's a webm
                     continue
@@ -72,70 +126,86 @@ class Mpero(commands.Cog):
                 print(f"Added a link to best of: {url}")
 
         print("finished updating links for most peroed posts")
-        self.bot.loop.call_later(432000, lambda: asyncio.ensure_future(self.periodic_link_update()))
-
-    async def update_gallery(self):
-
-        pass
-        '''
-        images = self.bot.buxman.get_gallery_links()  # tuples of (thumbnail path, off site URL for image)
-        for x in images:
-            a, b = x
-            a = a.strip()'''
+        self.bot.loop.call_later(43200, lambda: asyncio.ensure_future(self.periodic_link_update()))
 
     async def get_image_url(self, msgid, ch):
 
         """Save an image locally, that was either a twitter link or a direct image upload
-        to include in the best-of gallery"""
+        to include in the best-of gallery
 
-        tweet_finder = re.compile("/status/([0-9]+)")
-        imgurl_finder = re.compile('''https://.+gelbooru.com/images/.+\.(?:jpg|png)''')
-        # images / any number of non whitespace up to a ., then either .jpg or .png, in non-capturing parentheses
+        returns text, and bool for is it a twitter link"""
 
         channel = self.bot.get_channel(ch)
         msg = await channel.fetch_message(msgid)
         c = msg.content
         url = None
-        # print(f"downloading from {msg}")
-        # print(f"contet is: {c}")
+
+        print(f"Checking the message whose content is :{c}")
 
         if msg.attachments:  # an image someone uploaded directly
             url = msg.attachments[0].url
+            return url, False  # simplest case, a directly attached image
 
-        elif direct_link := imgurl_finder.findall(c):
-            url = direct_link[0]
+        if url := extract_gelbooru_url(c):
+            return url, False  # a post containing a URL like a gelbooru image link
 
-        if not url:
-            # print("nothing found in msg")
-            return  # nothing to save
-        else:
-            return url
+        # if neither of those two worked, see if it's a tweet
+
+        if twitter_link := extract_twitter_url(c):
+            return twitter_link, True  # bool lets the recieving function put it in the appropriate db column
+
+        print(f"nothing found in message: {c}")
+        return None, False  # still needs to be a 2-tuple to not break downstream fxns
 
     async def save_image_from_url(self, url, dest="/var/www/html/bestof/"):
 
-        """Download and save a SMALL THUMBNAIL for use in the gallery (we will link offsite to the big image).
+        """Download and save an image for use in the gallery, from gelbooru or a discord attachment.
         Returns the name of the saved file."""
 
-        ext = url.split(".")[-1]  # could be jpg or png
+        if res := TERMINAL_EXTENSION_FINDER.search(url):
+            ext = res.groups()[0]
+        elif res := DISCORD_EXTENSION_FINDER.search(url):
+            ext = res.groups()[0]
+        else:
+            print(f"couldn't find extension in URL {url}, not saving image")
+            return  # probably could get the data regardless and infer the extension, maybe one day
+
         async with aiohttp.ClientSession(loop=self.bot.loop) as s:
             async with s.get(url) as r:
                 async with timeout(60):
                     a = await r.read()
 
-                    # TODO: this will make the process get killed if it uses a lot of memory trying to resize a big pic!
+                    # this will make the process get killed if it uses a lot of memory trying to resize a big pic!
 
+                    '''
                     byts = BytesIO(a)  # make it look like a file so PIL can understand how to open it
                     im = Image.open(byts)
                     new_size = resize(im.size)
                     im = im.resize(new_size)
+                    '''
+                    # prev.used to resize image, but now we save the whole thing because we can't linkto discord anymore
 
                     hasher = md5()  # name the file by its hash
                     hasher.update(a)
                     hsh = hasher.hexdigest()
 
-                    fname = dest + hsh + "." + ext
-                    im.save(fname)
+                    fname = os.path.join(dest, hsh + "." + ext)
+                    # im.save(fname)  # from old PIL using code
+
+                    with open(fname, "wb") as f:
+                        f.write(a)  # save image data directly
                     return hsh + "." + ext
+
+    async def get_twitter_embed(self, url):
+
+        """Using a twitter URL converted to the proper x.com domain, use the oEmbed API to get an HTML snippet
+        appropriate for inclusion on the best of page"""
+
+        async with aiohttp.ClientSession(loop=self.bot.loop) as s:
+            async with s.get(OEMBED_URL, data={"url": url}) as r:
+                async with timeout(10):
+                    resp = await r.json()  # a status update or youtube link
+                    return resp["html"]
 
 
 async def setup(bot):

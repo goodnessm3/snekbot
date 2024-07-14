@@ -441,6 +441,18 @@ class Manager:
                                 (lnk, thumb, postid, channel))
         self.db.commit()
 
+    def add_twitter_embed(self, postid, channel, snippet):
+
+        self.cursor.execute('''UPDATE most_peroed SET 
+                                tweet_html = %s,
+                                image_url = 'placeholder' 
+                                WHERE postid = %s AND channel = %s''',
+                            (snippet, postid, channel))
+
+        # need to add image_url becase some other logic uses that to check for success, change it later
+
+        self.db.commit()
+
     def mark_as_downloaded(self, channelid, postid):
 
         self.cursor.execute('''UPDATE most_peroed SET done = 1 WHERE postid = %s AND channel = %s''', (channelid, postid))
@@ -505,7 +517,7 @@ class Manager:
             total_value = self.cursor.fetchone()[0]
             if not total_value:
                 continue
-            # TODO: do this all inside SQLite
+
             self.cursor.execute('''SELECT DISTINCT uid FROM stonks WHERE tag = %s''', (x,))
             lst = list(self.cursor.fetchall())
             for q in lst:
