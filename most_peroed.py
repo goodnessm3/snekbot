@@ -139,7 +139,7 @@ class Mpero(commands.Cog):
         try:
             msg = await channel.fetch_message(msgid)
         except Exception as e:
-            print(f"Couldn't download message {msg}")
+            print(f"Couldn't download message {msgid}")
             print(e)
             return None, False  # still needs to be a 2-tuple to not break downstream fxns
 
