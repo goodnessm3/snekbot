@@ -185,12 +185,11 @@ class Mpero(commands.Cog):
 
                     # this will make the process get killed if it uses a lot of memory trying to resize a big pic!
 
-                    '''
                     byts = BytesIO(a)  # make it look like a file so PIL can understand how to open it
                     im = Image.open(byts)
                     new_size = resize(im.size)
                     im = im.resize(new_size)
-                    '''
+
                     # prev.used to resize image, but now we save the whole thing because we can't linkto discord anymore
 
                     hasher = md5()  # name the file by its hash
@@ -198,7 +197,9 @@ class Mpero(commands.Cog):
                     hsh = hasher.hexdigest()
 
                     fname = os.path.join(dest, hsh + "." + ext)
-                    # im.save(fname)  # from old PIL using code
+                    thumbname = os.path.join(dest, "thumbnails", hsh + "." + ext)
+
+                    im.save(thumbname)  # from PIL
 
                     with open(fname, "wb") as f:
                         f.write(a)  # save image data directly
