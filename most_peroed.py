@@ -212,7 +212,13 @@ class Mpero(commands.Cog):
         async with aiohttp.ClientSession(loop=self.bot.loop) as s:
             async with s.get(OEMBED_URL, data={"url": url}) as r:
                 async with timeout(10):
-                    resp = await r.json()  # a status update or youtube link
+                    try:
+                        resp = await r.json()  # a status update or youtube link
+                    except aiohttp.client_exceptions.ContentTypeError:
+                        print("twitter response wasn't JSON:")
+                        print(r)
+                        ret = None
+                        return ret
                     try:
                         ret = resp["html"]
                     except:
