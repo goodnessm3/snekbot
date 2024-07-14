@@ -136,7 +136,13 @@ class Mpero(commands.Cog):
         returns text, and bool for is it a twitter link"""
 
         channel = self.bot.get_channel(ch)
-        msg = await channel.fetch_message(msgid)
+        try:
+            msg = await channel.fetch_message(msgid)
+        except Exception as e:
+            print(f"Couldn't download message {msg}")
+            print(e)
+            return None, False  # still needs to be a 2-tuple to not break downstream fxns
+
         c = msg.content
         url = None
 
