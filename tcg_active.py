@@ -141,7 +141,8 @@ class TcgActive(metaclass=SpecialMethodsMeta):
 
         # TODO: some kind of proper logging
 
-        print("Active cards:", astr)
+        # print("Active cards:", astr)
+        pass
 
     def amount_check(self, uid, currency, amount, comparator):
 
@@ -566,7 +567,7 @@ class ActiveCards(commands.Cog):
                     #secs = delta.seconds
                     ttr = time_to_run.seconds  # asyncio loop time is NOT THE SAME AS THE SYSTEM TIME!!!
                     self.scheduled_cards.append(serial)
-                    print(f"Evaluation of {serial} in {ttr} seconds.")
+                    # print(f"Evaluation of {serial} in {ttr} seconds.")
                     self.bot.loop.call_at(self.bot.loop.time() + ttr, self.carder.evaluate_card, serial)
                     self.bot.loop.call_at(self.bot.loop.time() + ttr, self.reschedule_card, serial)
                 else:
@@ -576,7 +577,7 @@ class ActiveCards(commands.Cog):
 
     def reschedule_card(self, serial):
 
-        print(f"Rescheduling {serial}, reset = False")
+        # print(f"Rescheduling {serial}, reset = False")
         self.bot.buxman.reschedule_card(serial)
         self.scheduled_cards.remove(serial)
 

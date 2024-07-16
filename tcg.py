@@ -261,9 +261,7 @@ class Tcg(commands.Cog):
 
         uid = ctx.message.author.id
         serial, price, duration = args
-        print("line 207, duration is", duration)
         duration = float(int(duration) * 3600)  # very stupid bug where multiplying a string by 3600 gives a BIG NUMBER
-        print("line 209, duration is", duration)
 
         if serial in self.offered_cards:
             await ctx.message.channel.send("That card is already involved in an auction or trade")
@@ -851,8 +849,6 @@ class Tcg(commands.Cog):
 
         uid = ctx.message.author.id
 
-        print(args)
-
         for x in args:
             if not serial_verifier.match(x):
                 await ctx.message.channel.send("Type 'snek burn' followed by a list of 5-digit card serial numbers.")
@@ -863,7 +859,6 @@ class Tcg(commands.Cog):
             return
 
         dict_for_layout = {"blank": args}
-        print(dict_for_layout)
         pict = self.make_card_summary(dict_for_layout)
         data2 = BytesIO()
         pict.save(data2, format="PNG")
