@@ -12,7 +12,7 @@ import os
 
 
 TWITTER_LINK_FINDER = re.compile('''((https://x.com|https://fixvx.com|https://vxtwitter.com|https://twitter.com)\S*)''')
-TO_REPLACE = ('''https://vxtwitter.com''', '''https://fixvx.com''')
+TO_REPLACE = ('''https://vxtwitter.com''', '''https://fixvx.com''', '''https://twitter.com''')
 TRUE_X = '''https://x.com'''
 OEMBED_URL = '''https://publish.twitter.com/oembed'''
 IMGURL_FINDER = re.compile('''https://.+gelbooru.com/{1,2}images/.+\.(?:jpg|png)''')
