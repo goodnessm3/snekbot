@@ -96,7 +96,11 @@ class Mpero(commands.Cog):
         print("updating image links for most peroed posts")
 
         best_pictures = self.bot.buxman.get_best_of(threshold=2)
+        cnt = 0
         for tup in best_pictures:
+            cnt += 1
+            if cnt > 500:
+                break  # only needed in initial setup but let's not hammer Discord too much
             postid, channel = tup
             url, is_tweet, message_content = await self.get_image_url(postid, channel)
 
@@ -130,7 +134,6 @@ class Mpero(commands.Cog):
 
                 self.bot.buxman.add_image_link(postid, channel, url, thumb)
                 print(f"Added a link to best of: {url}")
-
 
         print("finished updating links for most peroed posts")
         self.bot.loop.call_later(43200, lambda: asyncio.ensure_future(self.periodic_link_update()))
