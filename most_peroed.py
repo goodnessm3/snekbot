@@ -95,15 +95,19 @@ class Mpero(commands.Cog):
 
         print("updating image links for most peroed posts")
 
-        best_pictures = self.bot.buxman.get_best_of()
+        best_pictures = self.bot.buxman.get_best_of(threshold=2)
         for tup in best_pictures:
             postid, channel = tup
-            url, is_tweet = await self.get_image_url(postid, channel)
+            url, is_tweet, message_content = await self.get_image_url(postid, channel)
+
+            self.bot.buxman.store_message_content(channel, postid, message_content)
+            print(f"Stored text of message {postid}")
 
             if not url:  # not all peroed posts will have an image, so don't try to download one
                 self.bot.buxman.add_image_link(postid, channel, url, None, failed=True)
                 # record that there was no image, so we don't continually re-try
                 print(f"No image associated with postid {postid} in channel {channel}")
+
                 continue
 
             if is_tweet:
@@ -127,6 +131,7 @@ class Mpero(commands.Cog):
                 self.bot.buxman.add_image_link(postid, channel, url, thumb)
                 print(f"Added a link to best of: {url}")
 
+
         print("finished updating links for most peroed posts")
         self.bot.loop.call_later(43200, lambda: asyncio.ensure_future(self.periodic_link_update()))
 
@@ -135,7 +140,7 @@ class Mpero(commands.Cog):
         """Save an image locally, that was either a twitter link or a direct image upload
         to include in the best-of gallery
 
-        returns text, and bool for is it a twitter link"""
+        returns text, and bool for is it a twitter link, and the text of the message contents"""
 
         channel = self.bot.get_channel(ch)
         try:
@@ -143,7 +148,7 @@ class Mpero(commands.Cog):
         except Exception as e:
             print(f"Couldn't download message {msgid}")
             print(e)
-            return None, False  # still needs to be a 2-tuple to not break downstream fxns
+            return None, False, None  # still needs to be a 2-tuple to not break downstream fxns
 
         c = msg.content
         url = None
@@ -152,18 +157,18 @@ class Mpero(commands.Cog):
 
         if msg.attachments:  # an image someone uploaded directly
             url = msg.attachments[0].url
-            return url, False  # simplest case, a directly attached image
+            return url, False, c  # simplest case, a directly attached image
 
         if url := extract_gelbooru_url(c):
-            return url, False  # a post containing a URL like a gelbooru image link
+            return url, False, c  # a post containing a URL like a gelbooru image link
 
         # if neither of those two worked, see if it's a tweet
 
         if twitter_link := extract_twitter_url(c):
-            return twitter_link, True  # bool lets the recieving function put it in the appropriate db column
+            return twitter_link, True, c  # bool lets the recieving function put it in the appropriate db column
 
         print(f"nothing found in message: {c}")
-        return None, False  # still needs to be a 2-tuple to not break downstream fxns
+        return None, False, c  # still needs to be a 2-tuple to not break downstream fxns
 
     async def save_image_from_url(self, url, dest="/var/www/html/bestofhct/"):
 

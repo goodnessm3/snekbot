@@ -422,7 +422,7 @@ class Manager:
 
         """Returns (channel id, post id) of all posts with more than 5 peros for addition of image links."""
 
-        self.cursor.execute('''SELECT postid, channel FROM most_peroed WHERE count > %s and image_url is NULL''',
+        self.cursor.execute('''SELECT postid, channel FROM most_peroed WHERE count > %s and done is NULL''',
                             (threshold,))
         return self.cursor.fetchall()
 
@@ -456,6 +456,16 @@ class Manager:
     def mark_as_downloaded(self, channelid, postid):
 
         self.cursor.execute('''UPDATE most_peroed SET done = 1 WHERE postid = %s AND channel = %s''', (channelid, postid))
+        self.db.commit()
+
+    def store_message_content(self, channelid, postid, content):
+
+        self.cursor.execute('''UPDATE most_peroed
+                                SET done = TRUE,
+                                message_content = %s
+                                WHERE postid = %s
+                                AND
+                                channel = %s''', (content, postid, channelid))
         self.db.commit()
 
     def remove_pero_post(self, postid):
