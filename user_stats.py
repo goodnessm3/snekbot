@@ -422,7 +422,7 @@ class Manager:
 
         """Returns (channel id, post id) of all posts with more than 5 peros for addition of image links."""
 
-        self.cursor.execute('''SELECT postid, channel FROM most_peroed WHERE count > %s and done is NULL''',
+        self.cursor.execute('''SELECT postid, channel FROM most_peroed WHERE count > %s and done is FALSE''',
                             (threshold,))
         return self.cursor.fetchall()
 
@@ -451,11 +451,6 @@ class Manager:
 
         # need to add image_url becase some other logic uses that to check for success, change it later
 
-        self.db.commit()
-
-    def mark_as_downloaded(self, channelid, postid):
-
-        self.cursor.execute('''UPDATE most_peroed SET done = 1 WHERE postid = %s AND channel = %s''', (channelid, postid))
         self.db.commit()
 
     def store_message_content(self, channelid, postid, content):

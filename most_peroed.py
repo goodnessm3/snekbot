@@ -11,11 +11,16 @@ from io import BytesIO
 import os
 
 
-TWITTER_LINK_FINDER = re.compile('''((https://x.com|https://fixvx.com|https://vxtwitter.com|https://twitter.com)\S*)''')
+# twitter stuff...
+TWITTER_STATUS_FINDER = re.compile('''status/([0-9]+)''')
+TWITTER_LINK_FINDER = re.compile('''(https://x.com|https://fixvx.com|https://vxtwitter.com|https://twitter.com)''')
+TWITTER_OTHER = re.compile('''((https://x.com|https://fixvx.com|https://vxtwitter.com|https://twitter.com)\S*)''')
+VXTWITTER_BASE = '''https://api.vxtwitter.com/Twitter/status/{status}'''
 TO_REPLACE = ('''https://vxtwitter.com''', '''https://fixvx.com''', '''https://twitter.com''')
 TRUE_X = '''https://x.com'''
-OEMBED_URL = '''https://publish.twitter.com/oembed'''
+
 IMGURL_FINDER = re.compile('''https://.+gelbooru.com/{1,2}images/.+\.(?:jpg|png)''')
+OEMBED_URL = '''https://publish.twitter.com/oembed'''
 # images / any number of non whitespace up to a ., then either .jpg or .png, in non-capturing parentheses
 # sometimes we get two //'s between .com and images???
 DISCORD_EXTENSION_FINDER = re.compile('''([a-z]{3,4})\?ex=''')  # get the first group from this
@@ -33,19 +38,26 @@ def resize(tup):
     return int(x * ratio), int(y * ratio)
 
 
-def extract_twitter_url(astr):
+def extract_twitter_status(astr):
 
-    """Pull a link from twitter OR any of the "fixing" services from a string, return the converted URL"""
-
-    if found := TWITTER_LINK_FINDER.search(astr):
-        return convert_twitter_url(found.group())
-    return None
+    if TWITTER_LINK_FINDER.search(astr):
+        if stat := TWITTER_STATUS_FINDER.search(astr):
+            return stat.groups()[0]
 
 
 def extract_gelbooru_url(astr):
 
     if found := IMGURL_FINDER.search(astr):
         return found.group()
+
+
+def extract_twitter_url(astr):
+
+    """Pull a link from twitter OR any of the "fixing" services from a string, return the converted URL"""
+
+    if found := TWITTER_OTHER.search(astr):
+        return convert_twitter_url(found.group())
+    return None
 
 
 def convert_twitter_url(astr):
@@ -95,7 +107,7 @@ class Mpero(commands.Cog):
 
         print("updating image links for most peroed posts")
 
-        best_pictures = self.bot.buxman.get_best_of(threshold=2)
+        best_pictures = self.bot.buxman.get_best_of(threshold=1)###!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         cnt = 0
         for tup in best_pictures:
             cnt += 1
@@ -115,25 +127,24 @@ class Mpero(commands.Cog):
                 continue
 
             if is_tweet:
+                twitter_url = extract_twitter_url(message_content)
                 print(f"Getting twitter embed snippet for {postid}")
-                snippet = await self.get_twitter_embed(url)
-                if not snippet:
-                    continue
+                snippet = await self.get_twitter_embed(twitter_url)
+                if snippet:
+                    self.bot.buxman.add_twitter_embed(postid, channel, snippet)
+                    print("Added twitter HTML snibbed :DDD")  # we might use these one dau
 
-                self.bot.buxman.add_twitter_embed(postid, channel, snippet)
-                print("Added twitter HTML snibbed :DDD")
+            print(f"Getting images from peroed URL {url}")
 
-            else:
-                print(f"Getting image from peroed URL {url}")
-                try:
-                    thumb = await self.save_image_from_url(url)  # returns the name (md5 hash) of the thumbnail
-                    # update: now we are saving the full size image
-                except Exception as e:
-                    print(e)  # sometimes PIL won't be able to read the URL for whatever reason, e.g. it's a webm
-                    continue
+            try:
+                thumb = await self.save_image_from_url(url)  # returns the name (md5 hash) of the thumbnail
+                # update: now we are saving the full size image
+            except Exception as e:
+                print(e)  # sometimes PIL won't be able to read the URL for whatever reason, e.g. it's a webm
+                continue
 
-                self.bot.buxman.add_image_link(postid, channel, url, thumb)
-                print(f"Added a link to best of: {url}")
+            self.bot.buxman.add_image_link(postid, channel, url, thumb)
+            print(f"Added a link to best of: {url}")
 
         print("finished updating links for most peroed posts")
         self.bot.loop.call_later(43200, lambda: asyncio.ensure_future(self.periodic_link_update()))
@@ -156,27 +167,31 @@ class Mpero(commands.Cog):
         c = msg.content
         url = None
 
-        print(f"Checking the message whose content is :{c}")
+        print(f"Checking the message with content: {c}")
 
         if msg.attachments:  # an image someone uploaded directly
             url = msg.attachments[0].url
             return url, False, c  # simplest case, a directly attached image
+            # multiple attachments???
 
         if url := extract_gelbooru_url(c):
             return url, False, c  # a post containing a URL like a gelbooru image link
 
         # if neither of those two worked, see if it's a tweet
 
-        if twitter_link := extract_twitter_url(c):
-            return twitter_link, True, c  # bool lets the recieving function put it in the appropriate db column
+        if twitter_status := extract_twitter_status(c):
+            return await self.get_tweet_media(twitter_status), True, c
+            # bool lets the recieving function put it in the appropriate db column - deprecated
 
         print(f"nothing found in message: {c}")
         return None, False, c  # still needs to be a 2-tuple to not break downstream fxns
 
-    async def save_image_from_url(self, url, dest="/var/www/html/bestofhct/"):
+    async def save_image_from_url(self, url):
 
         """Download and save an image for use in the gallery, from gelbooru or a discord attachment.
         Returns the name of the saved file."""
+
+        dest = self.bot.settings["pero_image_directory"]
 
         if res := TERMINAL_EXTENSION_FINDER.search(url):
             ext = res.groups()[0]
@@ -217,10 +232,42 @@ class Mpero(commands.Cog):
                         f.write(a)  # save image data directly
                     return hsh + "." + ext
 
+    async def get_tweet_media(self, status):
+
+        """Get tweet details from the status code using vxtwitter, and use the media URLs to grab the pixs!!!"""
+
+        toget = VXTWITTER_BASE.format(status=status)
+
+        async with aiohttp.ClientSession(loop=self.bot.loop) as s:
+            async with s.get(toget) as r:
+                async with timeout(10):
+                    try:
+                        #resp = r  # a status update or youtube link
+                        az = await r.json()
+                    except Exception as e:
+                        print("Problem with vxtwitter:", e)
+                        return
+
+        if r.status == 200:
+            try:
+                formats = az["media_extended"]
+                for q in formats:
+                    if not q["type"] == "image":
+                        print(f"Bailing out of {status} which does not contain images")
+                        return
+                pixs = az.get("mediaURLs")
+                print(f"Got media urls from tweet status {status}")
+                return pixs[0]  # TODO: perhaps return all images from multi-image tweets? Will be a pain
+            except Exception as e:
+                print(f"didn't get any JSON for {status}, tweet was probably deleted:")
+                print(e)
+
     async def get_twitter_embed(self, url):
 
         """Using a twitter URL converted to the proper x.com domain, use the oEmbed API to get an HTML snippet
         appropriate for inclusion on the best of page"""
+
+        print("getting a twitter embed with link:", url)
 
         async with aiohttp.ClientSession(loop=self.bot.loop) as s:
             async with s.get(OEMBED_URL, data={"url": url}) as r:
