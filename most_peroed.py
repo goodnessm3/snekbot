@@ -107,7 +107,7 @@ class Mpero(commands.Cog):
 
         print("updating image links for most peroed posts")
 
-        best_pictures = self.bot.buxman.get_best_of(threshold=1)###!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        best_pictures = self.bot.buxman.get_best_of(threshold=2)
         cnt = 0
         for tup in best_pictures:
             cnt += 1
