@@ -59,9 +59,13 @@ class Ytvids(commands.Cog):
 
         print(f"Polled {poll_id}: {resp}")
         if resp["status"] == "complete":
+            aonly = resp["audio_only"]
             link = self.bot.settings["website"] + "/ytvideo/" + resp["url"]
             alink = "\U0001F508 " + link + "?format=opus"  # TODO: change response to determine what files are avbl
-            vlink = "\U0001F4FA " + link + "?format=mkv"
+            if aonly == 0:
+                vlink = "\U0001F4FA " + link + "?format=mkv"
+            else:
+                vlink = ""
             thumb_loc = self.get_thumbnail(resp["url"])
             await ctx.send(f"{ment}: your file is ready for download!\n{alink}\n{vlink}", file=discord.File(thumb_loc))
         elif resp["status"] == "error":
