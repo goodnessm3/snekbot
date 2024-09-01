@@ -158,7 +158,10 @@ class Tcg(commands.Cog):
         self.auction_times = {}  # serial: conclusion time
 
         self.bot.loop.call_later(10, lambda: asyncio.ensure_future(self.update_player_names()))
-        self.bot.loop.call_later(7200, lambda: asyncio.ensure_future(self.drop()))
+
+        # random drop disabled 09-01
+        #self.bot.loop.call_later(7200, lambda: asyncio.ensure_future(self.drop()))
+
         self.bot.loop.call_later(GACHA_LUCK_TIME, lambda: asyncio.ensure_future(self.decrement_counters()))
         self.bot.loop.call_later(CRATE_COST_TIME, lambda: asyncio.ensure_future(self.modulate_crate_cost()))
         # self.bot.loop.call_later(15, lambda: asyncio.ensure_future(self.npc_auction()))
@@ -167,6 +170,10 @@ class Tcg(commands.Cog):
         self.bot.loop.call_later(10, lambda: asyncio.ensure_future(self.update_guaranteed_cards()))
         # self.bot.loop.call_later(43200, lambda: asyncio.ensure_future(self.run_vault_checks()))
         # self.bot.loop.call_later(86400, lambda: asyncio.ensure_future(self.charge_vault_fees()))
+
+    async def retired(self, ctx):
+
+        await ctx.send("Snek cards are on hiatus, you are free.")
 
     async def update_guaranteed_cards(self):
 
@@ -226,7 +233,7 @@ class Tcg(commands.Cog):
         next_auction = 3600 + random.randint(0, 10000)  # auctions were made quicker and more frequent temporarily
         self.bot.loop.call_later(next_auction, lambda: asyncio.ensure_future(self.npc_auction()))
 
-    @commands.command()
+    #@commands.command() disabled 09-01
     async def auction(self, ctx, *args):
 
         """args are card serial, cost, time in seconds if wanted else default to 600 secs"""
@@ -283,7 +290,7 @@ class Tcg(commands.Cog):
         self.bot.loop.call_later(duration, lambda: asyncio.ensure_future(self.conclude_auction(serial)))
         print(f"Scheduled completion of auction after {duration} of serial {serial}")
 
-    @commands.command()
+    #@commands.command() disabled 09-01
     async def bid(self, ctx, *args):
 
         try:
@@ -589,6 +596,8 @@ class Tcg(commands.Cog):
         uid = ctx.message.author.id
         crds = self.bot.buxman.get_cards(uid)
 
+        await ctx.message.channel.send("Snek cards are on hiatus, but your collection is preserved.")  #09-01
+
         await ctx.message.channel.send(
             f"Go here to see your card collection: {self.bot.settings['website']}/static/card_summary?user={uid}")
 
@@ -655,6 +664,9 @@ class Tcg(commands.Cog):
     @vault_check
     async def crate(self, ctx):
 
+        await self.retired(ctx)
+        return  # 09-01
+
         cost = self.crate_cost[ctx.message.author.id]
         funds = self.bot.buxman.get_bux(ctx.message.author.id)
         if funds < cost:
@@ -693,7 +705,7 @@ class Tcg(commands.Cog):
 
         self.crate_cost[uid] =  self.crate_cost[uid] + 200  # slowly ramp up cost and have it decay back down
 
-    @commands.command()
+    #@commands.command()
     async def trade(self, ctx, *args):
 
         if ctx.message.author.id in self.waiting_for_response.values():
@@ -842,7 +854,7 @@ class Tcg(commands.Cog):
 
         await ctx.message.channel.send(f"Also go to {self.bot.settings['website']}/static/card_search to more easily view cards!")
 
-    @commands.command()
+    #@commands.command()
     @annoy
     @vault_check
     async def burn(self, ctx, *args):
@@ -890,7 +902,7 @@ class Tcg(commands.Cog):
 
         await ctx.message.channel.send("Feature coming soon:tm:")
 
-    @commands.command()
+    #@commands.command()
     async def offer(self, ctx, amount, serial):
 
         instructions = """Format of the command is 'snek offer [amount of snekbux] [card serial] to offer to buy the
@@ -1025,8 +1037,11 @@ class Tcg(commands.Cog):
 
         self.bot.loop.call_later(86400, lambda: asyncio.ensure_future(self.charge_vault_fees()))
 
-    @commands.command()
+    #@commands.command()
     async def vault(self, ctx, *args):
+
+        await self.retired(ctx)
+        return  # 09-01
 
         vault_words = {True: "ON", False: "OFF"}
         uid = ctx.message.author.id
