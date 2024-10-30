@@ -82,6 +82,7 @@ class ConvoTracker(commands.Cog):
             delta = now - last_query
             if delta.seconds > 900:
                 self.tracking[cid].clear()  # it's been more than 900 seconds, start fresh
+                self.chosen_prompts[uid] = 1  # reset from custom prompt to the default one
 
         self.times[cid] = now  # update when most recently used
         wanted_prompt_serial = self.chosen_prompts[uid]
