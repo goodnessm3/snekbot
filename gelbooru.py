@@ -36,6 +36,9 @@ class Gelbooru(commands.Cog):
         self.monitoring_times = defaultdict(lambda: 25000)  # {tag:int}
         # number of seconds to wait before querying, gradually increases if no new tag is found
         self.tag_hashes = []  # don't distribute dividend for the same image searched twice within a period of time
+        gelbooru_api_key = self.bot.settings["gelbooru_api_key"]
+        gelbooru_user_id = self.bot.settings["gelbooru_user_id"]
+        self.gelbooru_url_piece = f"&api_key={gelbooru_api_key}&user_id={gelbooru_user_id}"
 
         # self.serv = Tree_Server(self.bot.settings["tagserver_url"], 2012) # RIP
 
@@ -255,7 +258,7 @@ class Gelbooru(commands.Cog):
         tags = [x.replace("&", "%26") for x in args]  
         # TODO: actually use a nice url escaping function that handles all special characters not just &
 
-        url = self.url.format(str(offset), "+".join(tags))
+        url = self.url.format(str(offset), "+".join(tags)) + self.gelbooru_url_piece
         if limit:
             url += "&limit=1"
         async with aiohttp.ClientSession(loop=self.bot.loop) as s:

@@ -3,6 +3,7 @@ import re
 from collections import defaultdict
 import datetime
 import hashlib
+import random
 
 
 def get_max(dc):
@@ -906,15 +907,24 @@ class Manager:
 
         results = []
         while len(results) < 3:
-            self.cursor.execute('''SELECT tag FROM tags 
+            '''
+            self.cursor.execute(SELECT tag FROM tags 
                                    WHERE random() < 0.01
                                    AND count > 100
-                                   LIMIT 3''')
+                                   LIMIT 3)
+            '''
             # not perfect, but quick. In a loop for the one in a million chance
             # that we don't get three results the first time
-            results = self.cursor.fetchall()
+            # let's try something different
 
-        return [x[0] for x in results]
+            self.cursor.execute('''SELECT tag FROM tags 
+                                    WHERE count > 100''')  # about 1500 tags
+
+            rs = self.cursor.fetchall()
+            results = random.sample(rs, 3)
+
+        return results  # you were working on this on November 3rd 2024 and stopped before committing it
+        # untested as of now TODO
 
     # --- ACTIVE TRADING CARD FUNCTIONS ---
 
