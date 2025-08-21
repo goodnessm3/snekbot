@@ -33,7 +33,7 @@ class Gelbooru(commands.Cog):
         self.last_pic = None  # a reference to the last picture message so it can be deleted if lewd
         self.fallback_tags = ["large_breasts", "huge_breasts", "wide_hips"]
         self.dbman = bot.buxman  # interface to the SQL database
-        self.monitoring_times = defaultdict(lambda: 25000)  # {tag:int}
+        self.monitoring_times = defaultdict(lambda: 84600)  # {tag:int}
         # number of seconds to wait before querying, gradually increases if no new tag is found
         self.tag_hashes = []  # don't distribute dividend for the same image searched twice within a period of time
         gelbooru_api_key = self.bot.settings["gelbooru_api_key"]
